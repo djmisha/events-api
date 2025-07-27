@@ -27,7 +27,9 @@ app.use((req, res, next) => {
 
 // Protected API Routes (require API key)
 app.use("/api/v1/events", apiKeyAuth, eventsRouter);
-app.use("/api/webhook", apiKeyAuth, webhookRouter);
+
+// Webhook routes (use their own WEBHOOK_SECRET authentication)
+app.use("/api/webhook", webhookRouter);
 
 // Public routes (no API key required)
 app.use("/health", healthRouter);
@@ -41,35 +43,53 @@ if (process.env.NODE_ENV === "development") {
 // Root endpoint
 app.get("/", (req, res) => {
   const endpoints = {
-    events: "/api/v1/events/:id/:city (Requires API key)",
-    health: "/health (Public)",
-    webhook: "/api/webhook/* (Requires API key)",
+    events: {
+      path: "/api/v1/events/:id/:city",
+      authentication: "API Key required",
+      example: "/api/v1/events/71/chicago",
+    },
+    webhook: {
+      path: "/api/webhook/fetch-data",
+      authentication: "WEBHOOK_SECRET required",
+      method: "POST",
+      note: "For background processing only",
+    },
+    health: {
+      path: "/health",
+      authentication: "None (public)",
+    },
   };
 
   // Add test endpoints in development
   if (process.env.NODE_ENV === "development") {
     endpoints.test = {
-      edmtrain: "/api/test/edmtrain/71/chicago (Development only, no API key)",
-      ticketmaster:
-        "/api/test/ticketmaster/71/chicago (Development only, no API key)",
-      combined: "/api/test/combined/71/chicago (Development only, no API key)",
+      path: "/api/test/*",
+      authentication: "None (development only)",
+      examples: [
+        "/api/test/edmtrain/71/chicago",
+        "/api/test/ticketmaster/71/chicago",
+        "/api/test/combined/71/chicago",
+      ],
     };
   }
 
+  const authMethods = {
+    apiKey: [
+      "Header: x-api-key: YOUR_API_KEY",
+      "Query param: ?api_key=YOUR_API_KEY",
+      "Bearer token: Authorization: Bearer YOUR_API_KEY",
+    ],
+    webhook: ["Header: Authorization: Bearer YOUR_WEBHOOK_SECRET"],
+  };
+
   res.json({
-    message: "Events API with API Key Authentication",
+    message: "Events API with Authentication",
     version: "1.0.0",
     environment: process.env.NODE_ENV || "development",
     architecture: "serverless-ready",
-    authentication: {
-      required: ["events", "webhook"],
-      methods: [
-        "Header: x-api-key: YOUR_API_KEY",
-        "Query param: ?api_key=YOUR_API_KEY",
-        "Bearer token: Authorization: Bearer YOUR_API_KEY",
-      ],
-    },
+    caching: "Supabase cache_control table (6 hour TTL)",
     endpoints,
+    authentication: authMethods,
   });
 });
 
