@@ -79,7 +79,9 @@ const updateCacheTimestamp = async (locationId) => {
   const nextUpdate = new Date(now.getTime() + CACHE_MAX_AGE * 1000);
 
   // Log cache timing details for debugging
-  logger.info(`Cache timing - Location: ${locationId}, Current: ${now.toISOString()}, Next Update: ${nextUpdate.toISOString()}, TTL: ${HOURS} hours`);
+  logger.info(
+    `Cache timing - Location: ${locationId}, Current: ${now.toISOString()}, Next Update: ${nextUpdate.toISOString()}, TTL: ${HOURS} hours`
+  );
 
   // Upsert cache control record
   const { error } = await supabase.from("cache_control").upsert({
@@ -102,7 +104,9 @@ const updateCacheTimestamp = async (locationId) => {
     throw error;
   }
 
-  logger.info(`Cache update successful - Location: ${locationId}, Last Update: ${now.toISOString()}, Next Update: ${nextUpdate.toISOString()}`);
+  logger.info(
+    `Cache update successful - Location: ${locationId}, Last Update: ${now.toISOString()}, Next Update: ${nextUpdate.toISOString()}`
+  );
 };
 
 module.exports = {

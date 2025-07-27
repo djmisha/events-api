@@ -83,17 +83,20 @@ CREATE INDEX idx_cache_control_next_update ON cache_control (next_update);
 ### Installation
 
 1. Clone the repository:
+
    ```bash
    git clone <repository-url>
    cd events-api
    ```
 
 2. Install dependencies:
+
    ```bash
    npm install
    ```
 
 3. Copy the environment template and configure:
+
    ```bash
    cp .env.example .env
    ```
@@ -137,6 +140,7 @@ npm run cleanup
 #### Vercel Deployment
 
 1. Install Vercel CLI:
+
    ```bash
    npm i -g vercel
    ```
@@ -218,12 +222,14 @@ Check API health and service status.
 Serverless background data fetching endpoint (internal use).
 
 **Headers:**
+
 ```
 Authorization: Bearer <WEBHOOK_SECRET>
 Content-Type: application/json
 ```
 
 **Body:**
+
 ```json
 {
   "cityId": "71",
@@ -307,7 +313,7 @@ PORT=8000
 2. **Cache Check**: Query `cache_control` table for TTL status
 3. **Database Query**: Fetch current events from `partner_events` table
 4. **Immediate Response**: Return current data with cache status
-5. **Background Refresh** (if stale): 
+5. **Background Refresh** (if stale):
    - Development: Direct execution
    - Production: Webhook call to `/api/webhook/fetch-data`
 6. **Background Update**: Fetch → Transform → Save → Update cache timestamp
@@ -315,7 +321,7 @@ PORT=8000
 ## Serverless Benefits
 
 - ✅ **Stateless**: No server-side memory dependencies
-- ✅ **Scalable**: Database-driven cache works across instances  
+- ✅ **Scalable**: Database-driven cache works across instances
 - ✅ **Fast**: Always returns current data immediately
 - ✅ **Reliable**: Webhook-based background processing
 - ✅ **Cost-effective**: No always-on background processes

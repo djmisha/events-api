@@ -96,7 +96,7 @@ router.get("/:id/:city", async (req, res) => {
       city: city,
       cacheStatus: needsUpdate ? "updating" : "fresh",
       count: events?.length || 0,
-    });``
+    });
   } catch (error) {
     logger.error("Events endpoint error:", error);
     return res.status(500).json({

@@ -62,7 +62,9 @@ const normalizeTicketmasterEvents = (events, cityId, cityName) => {
         return {
           id: generateNumericIdFromString(`ticketmaster_${event.id}`),
           source: "ticketmaster",
-          link: event.url ? event.url.replace("sandiegohousemusic", "5926009") : null,
+          link: event.url
+            ? event.url.replace("sandiegohousemusic", "5926009")
+            : null,
           name: event.name || null,
           ages: event.ageRestrictions?.legalAgeEnforced ? "18+" : null,
           festivalind: false,
@@ -107,7 +109,9 @@ const normalizeTicketmasterEvents = (events, cityId, cityName) => {
                 Math.floor(Math.random() * 100000)
             ),
             name: attraction.name || null,
-            link: attraction.url ? attraction.url.replace("sandiegohousemusic", "5926009") : null,
+            link: attraction.url
+              ? attraction.url.replace("sandiegohousemusic", "5926009")
+              : null,
             b2bInd: false,
           })),
           location_id: cityId,
@@ -121,7 +125,10 @@ const normalizeTicketmasterEvents = (events, cityId, cityName) => {
           stackTrace: error.stack,
         });
         console.error("Full Ticketmaster Transform Error:", error);
-        console.error("Problematic Event Data:", JSON.stringify(event, null, 2));
+        console.error(
+          "Problematic Event Data:",
+          JSON.stringify(event, null, 2)
+        );
         return null;
       }
     })
