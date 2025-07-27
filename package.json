@@ -1,20 +1,38 @@
 {
   "name": "events-api",
   "version": "1.0.0",
-  "description": "A simple Express.js API for managing events",
-  "main": "app.js",
+  "description": "Event Aggregator API with Supabase Cache Control",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node app.js",
-    "dev": "nodemon app.js",
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "cleanup": "node -e \"require('./src/jobs/cleanup').execute()\"",
+    "build": "echo 'No build step required for Node.js API'",
+    "vercel-build": "echo 'Vercel build complete'",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["express", "api", "events", "nodejs"],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "express": "^5.1.0"
+    "@supabase/supabase-js": "^2.38.0",
+    "axios": "^1.6.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "joi": "^17.11.0",
+    "node-fetch": "^3.3.2",
+    "pino": "^8.16.0",
+    "pino-pretty": "^10.2.3",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.10"
-  }
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "events",
+    "api",
+    "express",
+    "supabase",
+    "cache-control"
+  ],
+  "author": "",
+  "license": "ISC"
 }

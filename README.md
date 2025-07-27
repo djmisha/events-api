@@ -1,100 +1,332 @@
 # Events API
 
-A simple Express.js API for managing events built with Node.js and Express.
+**Serverless Event Aggregator API** - Fetches and serves event data from EDM Train and Ticketmaster APIs with database-driven cache control.
+
+## Overview
+
+This system provides an Express.js API to serve event data stored in a Supabase database. It uses a **serverless-compatible approach** with database-driven cache management:
+
+- Each request checks a **cache control table** for data freshness (6-hour TTL)
+- If data is stale, the system:
+  - Returns current database data immediately (fast response)
+  - Triggers **webhook-based background fetch** for fresh data
+  - Subsequent requests receive updated data from the database
+
+**Key Benefits**: Fully stateless, serverless-ready, fast responses, scalable across instances.
+
+## Architecture
+
+- **Express.js API** – Serves `/api/v1/events/:id/:city`, manages cache control
+- **Cache Control Service** – Database-driven TTL management via Supabase table
+- **Supabase (PostgreSQL)** – Persistent storage for events and cache metadata
+- **Webhook System** – Serverless-compatible background processing
+- **External APIs** – EDM Train and Ticketmaster as data providers
 
 ## Features
 
-- RESTful API endpoints for events management
-- JSON request/response handling
-- Health check endpoint
-- Error handling middleware
-- Development server with auto-reload
+- 🚀 **Serverless-ready** - Compatible with Vercel, AWS Lambda, etc.
+- ⚡ **Fast responses** - Always returns current data immediately
+- 🔄 **Background refresh** - Webhook-based async data updates
+- 🗄️ **Database-driven cache** - No server-side memory dependencies
+- 🧹 **Manual cleanup** - Remove expired events via npm script
+- 📊 **Health monitoring** - Database connectivity checks
+- 📝 **Structured logging** - Comprehensive request and error tracking
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js (v14 or higher)
+- Node.js (v18 or higher)
 - npm
+- Supabase account and project
+- EDM Train Client ID
+- Ticketmaster API credentials
+
+### Database Setup
+
+Create the required tables in your Supabase database:
+
+```sql
+-- Events table
+CREATE TABLE partner_events (
+  id BIGINT PRIMARY KEY,
+  source TEXT,
+  name TEXT,
+  venue JSONB,
+  location_id INTEGER,
+  date DATE,
+  starttime TIME,
+  endtime TIME,
+  link TEXT,
+  ages TEXT,
+  festivalind BOOLEAN,
+  livestreamind BOOLEAN,
+  electronicgenreind BOOLEAN,
+  othergenreind BOOLEAN,
+  artistlist JSONB,
+  createddate TIMESTAMP DEFAULT NOW()
+);
+
+-- Cache control table
+CREATE TABLE cache_control (
+  location_id TEXT PRIMARY KEY,
+  last_update TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  next_update TIMESTAMP WITH TIME ZONE DEFAULT NOW() + INTERVAL '6 hours',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Index for efficient cache queries
+CREATE INDEX idx_cache_control_next_update ON cache_control (next_update);
+```
 
 ### Installation
 
-1. Clone the repository or navigate to the project directory
+1. Clone the repository:
+   ```bash
+   git clone <repository-url>
+   cd events-api
+   ```
+
 2. Install dependencies:
    ```bash
    npm install
    ```
 
+3. Copy the environment template and configure:
+   ```bash
+   cp .env.example .env
+   ```
+
+4. Edit `.env` file with your actual values:
+   ```env
+   SUPABASE_URL=https://your-project.supabase.co
+   SUPABASE_ANON_KEY=your-anon-key
+   EDM_TRAIN_CLIENT_ID=your-client-id
+   TICKETMASTER_API_KEY=your-api-key
+   TICKETMASTER_SECRET=your-secret
+   WEBHOOK_SECRET=your-secure-random-string
+   ```
+
 ### Running the Application
 
 #### Development Mode
+
 ```bash
 npm run dev
 ```
-This will start the server with nodemon, which automatically restarts when you make changes.
+
+This starts the server with nodemon for automatic restarts on file changes.
 
 #### Production Mode
+
 ```bash
 npm start
 ```
 
-The server will start on port 3001 by default. You can set a different port using the `PORT` environment variable:
+#### Manual Cleanup
+
+To remove expired events from the database:
+
 ```bash
-PORT=8080 npm start
+npm run cleanup
 ```
+
+### Deployment
+
+#### Vercel Deployment
+
+1. Install Vercel CLI:
+   ```bash
+   npm i -g vercel
+   ```
+
+2. Set environment variables in Vercel dashboard
+
+3. Deploy:
+   ```bash
+   vercel --prod
+   ```
+
+The server will start on port 8000 by default. You can set a different port using the `PORT` environment variable.
 
 ## API Endpoints
 
 ### Base URL
-`http://localhost:3001`
 
-### Endpoints
+- **Development**: `http://localhost:8000`
+- **Production**: `https://your-app.vercel.app`
 
-- **GET /** - Welcome message with API information
-- **GET /health** - Health check endpoint
-- **GET /api/events** - Get all events
-- **POST /api/events** - Create a new event
+### Main Endpoints
 
-### Example Usage
+#### GET `/api/v1/events/:id/:city`
 
-#### Get all events
-```bash
-curl http://localhost:3001/api/events
+Fetch events for a specific city using path parameters.
+
+**Parameters:**
+
+- `id` (required): Numeric city identifier
+- `city` (required): URL-encoded city name
+
+**Example:**
+
+```
+GET /api/v1/events/71/chicago
+GET /api/v1/events/456/new%20york
 ```
 
-#### Create a new event
-```bash
-curl -X POST http://localhost:3001/api/events \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "Tech Conference",
-    "description": "Annual technology conference",
-    "date": "2025-09-15",
-    "location": "Convention Center"
-  }'
+**Response:**
+
+```json
+{
+  "data": [...events],
+  "source": "database",
+  "id": 71,
+  "city": "chicago",
+  "cacheStatus": "fresh",
+  "count": 45
+}
 ```
+
+**Status Codes:**
+
+- `200`: Events returned successfully
+- `202`: Background fetch triggered, data being updated
+- `400`: Invalid parameters
+- `500`: Server error
+
+#### GET `/health`
+
+Check API health and service status.
+
+**Response:**
+
+```json
+{
+  "status": "OK",
+  "timestamp": "2025-07-27T15:00:00.000Z",
+  "uptime": 123.456,
+  "environment": "production",
+  "services": {
+    "database": "OK"
+  }
+}
+```
+
+#### POST `/api/webhook/fetch-data`
+
+Serverless background data fetching endpoint (internal use).
+
+**Headers:**
+```
+Authorization: Bearer <WEBHOOK_SECRET>
+Content-Type: application/json
+```
+
+**Body:**
+```json
+{
+  "cityId": "71",
+  "cityName": "chicago"
+}
+```
+
+### Test Endpoints (Development Only)
+
+Available when `NODE_ENV=development`:
+
+#### GET `/api/test/edmtrain/:id/:city`
+
+Test EDM Train API directly.
+
+#### GET `/api/test/ticketmaster/:id/:city`
+
+Test Ticketmaster API directly.
+
+#### GET `/api/test/combined/:id/:city`
+
+Test both APIs and see combined results.
 
 ## Project Structure
 
 ```
-events-api/
-├── app.js              # Main application file
-├── package.json        # Project dependencies and scripts
-├── README.md          # This file
-└── .github/
-    └── copilot-instructions.md  # Copilot customization
+/events-api
+├── /src
+│   ├── /api
+│   │   ├── events.js          # Main events endpoint
+│   │   ├── webhook.js         # Webhook endpoints
+│   │   ├── health.js          # Health check
+│   │   └── test.js            # Test endpoints (dev only)
+│   ├── /jobs
+│   │   ├── fetchData.js       # Combined data fetching logic
+│   │   └── cleanup.js         # Manual cleanup job
+│   ├── /services
+│   │   ├── edmTrain.js        # EDM Train API client
+│   │   ├── ticketmaster.js    # Ticketmaster API client
+│   │   ├── supabaseClient.js  # Supabase helper
+│   │   ├── cacheControl.js    # Database cache management
+│   │   ├── backgroundJobs.js  # Webhook/direct execution handler
+│   │   └── logger.js          # Logging utility
+│   ├── /utils
+│   │   ├── transform.js       # Data transformation logic
+│   │   └── validate.js        # Data validation
+│   ├── /database
+│   │   └── cache_control.sql  # Database schema
+│   └── server.js              # Express app entry point
+├── vercel.json                # Vercel deployment config
+├── .env.vercel.template       # Environment variables template
+├── package.json               # Dependencies and scripts
+└── README.md                  # This file
 ```
 
-## Development
+## Environment Variables
 
-- The main application logic is in `app.js`
-- Uses Express.js for the web framework
-- Includes basic middleware for JSON parsing and error handling
-- Nodemon is configured for development auto-reload
+Required environment variables:
+
+```bash
+# Database
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+
+# External APIs
+EDM_TRAIN_CLIENT_ID=your-client-id
+TICKETMASTER_API_KEY=your-api-key
+TICKETMASTER_SECRET=your-secret
+
+# Webhook Security
+WEBHOOK_SECRET=your-secure-random-string
+
+# Application
+NODE_ENV=production
+PORT=8000
+```
+
+## Data Flow
+
+1. **User Request**: GET `/api/v1/events/:id/:city`
+2. **Cache Check**: Query `cache_control` table for TTL status
+3. **Database Query**: Fetch current events from `partner_events` table
+4. **Immediate Response**: Return current data with cache status
+5. **Background Refresh** (if stale): 
+   - Development: Direct execution
+   - Production: Webhook call to `/api/webhook/fetch-data`
+6. **Background Update**: Fetch → Transform → Save → Update cache timestamp
+
+## Serverless Benefits
+
+- ✅ **Stateless**: No server-side memory dependencies
+- ✅ **Scalable**: Database-driven cache works across instances  
+- ✅ **Fast**: Always returns current data immediately
+- ✅ **Reliable**: Webhook-based background processing
+- ✅ **Cost-effective**: No always-on background processes
 
 ## Contributing
 
-1. Make your changes
-2. Test the API endpoints
+1. Follow the coding conventions in `.github/copilot-instructions.md`
+2. Test endpoints thoroughly
 3. Ensure proper error handling
-4. Follow the coding conventions outlined in `.github/copilot-instructions.md`
+4. Update documentation for new features
+
+## License
+
+ISC
