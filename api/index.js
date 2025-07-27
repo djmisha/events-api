@@ -1,13 +1,19 @@
 // Vercel serverless function - Express app definition
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 require("dotenv").config();
 
-const eventsRouter = require("../src/api/events");
-const healthRouter = require("../src/api/health");
-const testRouter = require("../src/api/test");
-const webhookRouter = require("../src/api/webhook");
-const logger = require("../src/services/logger");
+// Use absolute paths for imports
+const eventsRouter = require(path.join(__dirname, "../src/api/events"));
+const healthRouter = require(path.join(__dirname, "../src/api/health"));
+const testRouter = require(path.join(__dirname, "../src/api/test"));
+const webhookRouter = require(path.join(__dirname, "../src/api/webhook"));
+const logger = require(path.join(__dirname, "../src/services/logger"));
+const apiKeyAuth = require(path.join(
+  __dirname,
+  "../src/middleware/apiKeyAuth"
+));
 
 const app = express();
 
@@ -24,12 +30,14 @@ app.use((req, res, next) => {
   next();
 });
 
-// API Routes
-app.use("/api/v1/events", eventsRouter);
-app.use("/api/webhook", webhookRouter);
+// Protected API Routes (require API key)
+app.use("/api/v1/events", apiKeyAuth, eventsRouter);
+app.use("/api/webhook", apiKeyAuth, webhookRouter);
+
+// Public routes (no API key required)
 app.use("/health", healthRouter);
 
-// Test routes (only in development)
+// Test routes (only in development, no API key for easier testing)
 if (process.env.NODE_ENV === "development") {
   app.use("/api/test", testRouter);
 }
@@ -37,25 +45,34 @@ if (process.env.NODE_ENV === "development") {
 // Root endpoint
 app.get("/", (req, res) => {
   const endpoints = {
-    events: "/api/v1/events/:id/:city (e.g., /api/v1/events/123/chicago)",
-    health: "/health",
-    webhook: "/api/webhook/health",
+    events: "/api/v1/events/:id/:city (Requires API key)",
+    health: "/health (Public)",
+    webhook: "/api/webhook/* (Requires API key)",
   };
 
   // Add test endpoints in development
   if (process.env.NODE_ENV === "development") {
     endpoints.test = {
-      edmtrain: "/api/test/edmtrain/71/chicago",
-      ticketmaster: "/api/test/ticketmaster/71/chicago",
-      combined: "/api/test/combined/71/chicago",
+      edmtrain: "/api/test/edmtrain/71/chicago (Development only, no API key)",
+      ticketmaster:
+        "/api/test/ticketmaster/71/chicago (Development only, no API key)",
+      combined: "/api/test/combined/71/chicago (Development only, no API key)",
     };
   }
 
   res.json({
-    message: "Events API",
+    message: "Events API with API Key Authentication",
     version: "1.0.0",
     environment: process.env.NODE_ENV || "development",
     architecture: "serverless-ready",
+    authentication: {
+      required: ["events", "webhook"],
+      methods: [
+        "Header: x-api-key: YOUR_API_KEY",
+        "Query param: ?api_key=YOUR_API_KEY",
+        "Bearer token: Authorization: Bearer YOUR_API_KEY",
+      ],
+    },
     endpoints,
   });
 });
@@ -80,4 +97,5 @@ app.use("*", (req, res) => {
   });
 });
 
+// Export as serverless function handler
 module.exports = app;
