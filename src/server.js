@@ -81,8 +81,12 @@ app.use("*", (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  logger.info(`Events API server running on port ${PORT}`);
-});
+// Only start the server in development or when not running on Vercel
+if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    logger.info(`Events API server running on port ${PORT}`);
+  });
+}
 
+// Export the app for Vercel
 module.exports = app;

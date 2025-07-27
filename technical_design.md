@@ -4,11 +4,11 @@
 
 This system provides an Express.js API to serve event data stored in a Supabase database. It retrieves data from EDM Train and Ticketmaster using a **serverless-compatible approach**. Instead of in-memory caching or scheduled jobs:
 
-* Each request checks a **database-driven cache control system**.
-* If data is stale, the system:
-  * Returns current database data immediately (fast response).
-  * Triggers a **webhook-based background fetch** for fresh data.
-  * Subsequent requests receive updated data from the database.
+- Each request checks a **database-driven cache control system**.
+- If data is stale, the system:
+  - Returns current database data immediately (fast response).
+  - Triggers a **webhook-based background fetch** for fresh data.
+  - Subsequent requests receive updated data from the database.
 
 This approach is **fully stateless** and **serverless-ready** (Vercel, AWS Lambda, etc.).
 
@@ -20,8 +20,8 @@ This approach is **fully stateless** and **serverless-ready** (Vercel, AWS Lambd
 2. **Cache Control Service** – Database-driven TTL management using Supabase `cache_control` table (6-hour TTL).
 3. **Supabase (PostgreSQL)** – Persistent storage for events and cache metadata.
 4. **Webhook System** – Serverless-compatible background processing:
-   * `/api/webhook/fetch-data` endpoint for async data fetching.
-   * Automatic environment detection (direct execution in dev, webhook in production).
+   - `/api/webhook/fetch-data` endpoint for async data fetching.
+   - Automatic environment detection (direct execution in dev, webhook in production).
 5. **External APIs** – EDM Train and Ticketmaster as data providers.
 6. **Transform & Validation Utilities** – Normalize external data into a unified schema.
 7. **Logging** – Comprehensive request, cache, and job activity tracking.
@@ -33,18 +33,20 @@ This approach is **fully stateless** and **serverless-ready** (Vercel, AWS Lambd
 ### 3.1 User Request (GET `/api/v1/events/:id/:city`)
 
 1. **Cache Control Check**:
-   * Query `cache_control` table for location TTL status.
-   * If cache is fresh (<6 hours) → proceed to return database data.
-   * If cache is stale or missing → trigger background refresh + return current data.
+
+   - Query `cache_control` table for location TTL status.
+   - If cache is fresh (<6 hours) → proceed to return database data.
+   - If cache is stale or missing → trigger background refresh + return current data.
 
 2. **Immediate Database Response**:
-   * Query `partner_events` table for existing events.
-   * Return current data immediately (ensures fast response times).
-   * Include `cacheStatus` field indicating if data is being refreshed.
+
+   - Query `partner_events` table for existing events.
+   - Return current data immediately (ensures fast response times).
+   - Include `cacheStatus` field indicating if data is being refreshed.
 
 3. **Background Refresh** (if needed):
-   * **Development**: Direct execution of `fetchData.execute()`.
-   * **Production**: Webhook call to `/api/webhook/fetch-data`.
+   - **Development**: Direct execution of `fetchData.execute()`.
+   - **Production**: Webhook call to `/api/webhook/fetch-data`.
 
 ### 3.2 Background Data Fetch (Webhook-based)
 
@@ -55,8 +57,8 @@ This approach is **fully stateless** and **serverless-ready** (Vercel, AWS Lambd
 
 ### 3.3 Manual Cleanup
 
-* Run `npm run cleanup` to delete expired events from database.
-* No cache invalidation needed (database-driven approach).
+- Run `npm run cleanup` to delete expired events from database.
+- No cache invalidation needed (database-driven approach).
 
 ---
 
@@ -104,23 +106,23 @@ CREATE INDEX idx_cache_control_next_update ON cache_control (next_update);
 
 ### GET `/api/v1/events/:id/:city`
 
-* **Parameters**: City ID (numeric) and city name.
-* **Returns**: Current database events with cache status.
-* **Behavior**: If cache is stale → triggers background refresh + returns existing data.
+- **Parameters**: City ID (numeric) and city name.
+- **Returns**: Current database events with cache status.
+- **Behavior**: If cache is stale → triggers background refresh + returns existing data.
 
 ### GET `/api/webhook/fetch-data` (POST)
 
-* **Purpose**: Serverless-compatible background data fetching.
-* **Authentication**: Bearer token via `WEBHOOK_SECRET`.
-* **Parameters**: `{ cityId, cityName }`.
+- **Purpose**: Serverless-compatible background data fetching.
+- **Authentication**: Bearer token via `WEBHOOK_SECRET`.
+- **Parameters**: `{ cityId, cityName }`.
 
 ### GET `/health`
 
-* **Returns**: API status and database connectivity.
+- **Returns**: API status and database connectivity.
 
 ### GET `/api/test/*` (Development only)
 
-* **Test endpoints**: Individual and combined API testing.
+- **Test endpoints**: Individual and combined API testing.
 
 ---
 
@@ -130,32 +132,9 @@ CREATE INDEX idx_cache_control_next_update ON cache_control (next_update);
 ## 6. File/Folder Structure
 
 ```
-/events-api
-├── /src
-│   ├── /api
-│   │   ├── events.js          # /api/v1/events/:id/:city route
-│   │   ├── webhook.js         # Webhook endpoints for serverless
-│   │   ├── health.js          # Health check
-│   │   └── test.js            # Development testing endpoints
-│   ├── /jobs
-│   │   ├── fetchData.js       # Combined data fetching logic
-│   │   └── cleanup.js         # Delete old events (manual)
-│   ├── /services
-│   │   ├── edmTrain.js        # EDM Train API client
-│   │   ├── ticketmaster.js    # Ticketmaster API client
-│   │   ├── supabaseClient.js  # Supabase helper
-│   │   ├── cacheControl.js    # Database-driven cache management
-│   │   ├── backgroundJobs.js  # Webhook/direct execution handler
-│   │   └── logger.js          # Logging utility
-│   ├── /utils
-│   │   ├── transform.js       # Data transformation logic
-│   │   └── validate.js        # Optional validation
-│   ├── /database
-│   │   └── cache_control.sql  # Database schema for cache table
-│   └── server.js              # Express app entry point
-├── vercel.json                # Vercel deployment configuration
-├── .env.vercel.template       # Environment variables template
-└── package.json               # Dependencies and scripts
+
+/events-api ├── /src │ ├── /api │ │ ├── events.js # /api/v1/events/:id/:city route │ │ ├── webhook.js # Webhook endpoints for serverless │ │ ├── health.js # Health check │ │ └── test.js # Development testing endpoints │ ├── /jobs │ │ ├── fetchData.js # Combined data fetching logic │ │ └── cleanup.js # Delete old events (manual) │ ├── /services │ │ ├── edmTrain.js # EDM Train API client │ │ ├── ticketmaster.js # Ticketmaster API client │ │ ├── supabaseClient.js # Supabase helper │ │ ├── cacheControl.js # Database-driven cache management │ │ ├── backgroundJobs.js # Webhook/direct execution handler │ │ └── logger.js # Logging utility │ ├── /utils │ │ ├── transform.js # Data transformation logic │ │ └── validate.js # Optional validation │ ├── /database │ │ └── cache_control.sql # Database schema for cache table │ └── server.js # Express app entry point ├── vercel.json # Vercel deployment configuration ├── .env.vercel.template # Environment variables template └── package.json # Dependencies and scripts
+
 ```
 
 ---
@@ -190,15 +169,15 @@ PORT=8000
 
 ## 8. Technology Stack
 
-| Component        | Technology      | Reason                                        |
-| ---------------- | --------------- | --------------------------------------------- |
-| API Framework    | Express.js      | Lightweight and widely supported              |
-| Cache Management | Supabase Table  | Database-driven, serverless-compatible        |
-| Database         | Supabase        | Managed PostgreSQL, persistent storage       |
-| Background Jobs  | Webhook-based   | Serverless-compatible async processing       |
-| HTTP Client      | axios, fetch    | External API calls with built-in fetch       |
-| Logging          | pino            | Structured logs with performance             |
-| Deployment       | Vercel          | Serverless platform with zero-config        |
+| Component        | Technology     | Reason                                 |
+| ---------------- | -------------- | -------------------------------------- |
+| API Framework    | Express.js     | Lightweight and widely supported       |
+| Cache Management | Supabase Table | Database-driven, serverless-compatible |
+| Database         | Supabase       | Managed PostgreSQL, persistent storage |
+| Background Jobs  | Webhook-based  | Serverless-compatible async processing |
+| HTTP Client      | axios, fetch   | External API calls with built-in fetch |
+| Logging          | pino           | Structured logs with performance       |
+| Deployment       | Vercel         | Serverless platform with zero-config   |
 
 ---
 
@@ -206,18 +185,18 @@ PORT=8000
 
 ### ✅ Pros
 
-* **Fully stateless** - No server-side memory dependencies.
-* **Serverless-ready** - Compatible with Vercel, AWS Lambda, etc.
-* **Scalable** - Database-driven cache works across multiple instances.
-* **Fast responses** - Always returns current data immediately.
-* **Cost-effective** - No always-on background processes.
-* **Reliable** - Webhook-based background processing.
+- **Fully stateless** - No server-side memory dependencies.
+- **Serverless-ready** - Compatible with Vercel, AWS Lambda, etc.
+- **Scalable** - Database-driven cache works across multiple instances.
+- **Fast responses** - Always returns current data immediately.
+- **Cost-effective** - No always-on background processes.
+- **Reliable** - Webhook-based background processing.
 
 ### ⚠️ Considerations
 
-* **Database queries** - Every request hits the database (mitigated by Supabase performance).
-* **Webhook reliability** - Background fetches depend on webhook delivery.
-* **Cold starts** - Initial serverless function startup time.
+- **Database queries** - Every request hits the database (mitigated by Supabase performance).
+- **Webhook reliability** - Background fetches depend on webhook delivery.
+- **Cold starts** - Initial serverless function startup time.
 
 ---
 
@@ -248,7 +227,7 @@ curl http://localhost:8000/health
 npm i -g vercel
 
 # Set environment variables in Vercel dashboard:
-# SUPABASE_URL, SUPABASE_ANON_KEY, EDM_TRAIN_CLIENT_ID, 
+# SUPABASE_URL, SUPABASE_ANON_KEY, EDM_TRAIN_CLIENT_ID,
 # TICKETMASTER_API_KEY, TICKETMASTER_SECRET, WEBHOOK_SECRET
 
 # Deploy
@@ -277,6 +256,7 @@ curl "https://your-app.vercel.app/api/v1/events/71/chicago"
 ```
 
 **Response:**
+
 ```json
 {
   "data": [...events...],
@@ -295,6 +275,7 @@ curl "https://your-app.vercel.app/health"
 ```
 
 **Response:**
+
 ```json
 {
   "status": "OK",
@@ -308,13 +289,16 @@ curl "https://your-app.vercel.app/health"
 ```
 
 ---
-   * Node-Cache integration
-   * Supabase fetch & upsert
+
+- Node-Cache integration
+- Supabase fetch & upsert
+
 3. Add Bree.js jobs for:
 
-   * Fetch EDM Train
-   * Fetch Ticketmaster
-   * Cleanup old events
+   - Fetch EDM Train
+   - Fetch Ticketmaster
+   - Cleanup old events
+
 4. Write transformation utilities.
 5. Add basic tests for routes and jobs.
 6. Deploy single-instance service.
