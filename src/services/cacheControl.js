@@ -2,8 +2,8 @@ const supabase = require("./supabaseClient");
 const logger = require("./logger");
 
 // Cache configuration constants
-const HOURS = 6;
-const CACHE_MAX_AGE = HOURS * 60 * 60; // 6 hours in seconds
+const HOURS = 12;
+const CACHE_MAX_AGE = HOURS * 60 * 60;
 
 /**
  * Ensures a cache entry exists for the given location

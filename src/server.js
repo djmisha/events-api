@@ -37,7 +37,6 @@ app.use("/health", healthRouter);
 // Test routes (only in development, no API key for easier testing)
 if (process.env.NODE_ENV === "development") {
   app.use("/api/test", testRouter);
-  // logger.info("Test endpoints enabled at /api/test/*");
 }
 
 // Root endpoint
