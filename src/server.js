@@ -41,55 +41,56 @@ if (process.env.NODE_ENV === "development") {
 
 // Root endpoint
 app.get("/", (req, res) => {
-  const endpoints = {
-    events: {
-      path: "/api/v1/events/:id/:city",
-      authentication: "API Key required",
-      example: "/api/v1/events/71/chicago",
-    },
-    webhook: {
-      path: "/api/webhook/fetch-data",
-      authentication: "WEBHOOK_SECRET required",
-      method: "POST",
-      note: "For background processing only",
-    },
-    health: {
-      path: "/health",
-      authentication: "None (public)",
-    },
-  };
+  res.status(404).send("Not Found");
+  // const endpoints = {
+  //   events: {
+  //     path: "/api/v1/events/:id/:city",
+  //     authentication: "API Key required",
+  //     example: "/api/v1/events/71/chicago",
+  //   },
+  //   webhook: {
+  //     path: "/api/webhook/fetch-data",
+  //     authentication: "WEBHOOK_SECRET required",
+  //     method: "POST",
+  //     note: "For background processing only",
+  //   },
+  //   health: {
+  //     path: "/health",
+  //     authentication: "None (public)",
+  //   },
+  // };
 
-  // Add test endpoints in development
-  if (process.env.NODE_ENV === "development") {
-    endpoints.test = {
-      path: "/api/test/*",
-      authentication: "None (development only)",
-      examples: [
-        "/api/test/edmtrain/71/chicago",
-        "/api/test/ticketmaster/71/chicago",
-        "/api/test/combined/71/chicago",
-      ],
-    };
-  }
+  // // Add test endpoints in development
+  // if (process.env.NODE_ENV === "development") {
+  //   endpoints.test = {
+  //     path: "/api/test/*",
+  //     authentication: "None (development only)",
+  //     examples: [
+  //       "/api/test/edmtrain/71/chicago",
+  //       "/api/test/ticketmaster/71/chicago",
+  //       "/api/test/combined/71/chicago",
+  //     ],
+  //   };
+  // }
 
-  const authMethods = {
-    apiKey: [
-      "Header: x-api-key: YOUR_API_KEY",
-      "Query param: ?api_key=YOUR_API_KEY",
-      "Bearer token: Authorization: Bearer YOUR_API_KEY",
-    ],
-    webhook: ["Header: Authorization: Bearer YOUR_WEBHOOK_SECRET"],
-  };
+  // const authMethods = {
+  //   apiKey: [
+  //     "Header: x-api-key: YOUR_API_KEY",
+  //     "Query param: ?api_key=YOUR_API_KEY",
+  //     "Bearer token: Authorization: Bearer YOUR_API_KEY",
+  //   ],
+  //   webhook: ["Header: Authorization: Bearer YOUR_WEBHOOK_SECRET"],
+  // };
 
-  res.json({
-    message: "Events API with Authentication",
-    version: "1.0.0",
-    environment: process.env.NODE_ENV || "development",
-    architecture: "serverless-ready",
-    caching: "Supabase cache_control table (6 hour TTL)",
-    endpoints,
-    authentication: authMethods,
-  });
+  // res.json({
+  //   message: "Events API with Authentication",
+  //   version: "1.0.0",
+  //   environment: process.env.NODE_ENV || "development",
+  //   architecture: "serverless-ready",
+  //   caching: "Supabase cache_control table (6 hour TTL)",
+  //   endpoints,
+  //   authentication: authMethods,
+  // });
 });
 
 // Error handling middleware
