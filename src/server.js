@@ -18,10 +18,10 @@ app.use(express.json());
 
 // Request logging middleware
 app.use((req, res, next) => {
-  logger.info(`${req.method} ${req.path}`, {
-    query: req.query,
-    userAgent: req.get("User-Agent"),
-  });
+  // Only log API routes, skip health checks and static assets
+  if (req.path.startsWith("/api/")) {
+    logger.info(`${req.method} ${req.path}`);
+  }
   next();
 });
 

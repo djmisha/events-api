@@ -18,12 +18,7 @@ class EdmTrainService {
     }
 
     try {
-      logger.info(
-        `Fetching EDM Train events for city: ${cityName} (ID: ${cityId})`
-      );
-
       const url = `${this.baseURL}${cityId}&client=${this.apiKey}`;
-      console.log(`EDM Train API URL: ${url}`);
       const response = await axios.get(url);
 
       if (response.data && response.data.data) {

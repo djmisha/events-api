@@ -18,11 +18,7 @@ const triggerBackgroundFetch = async (cityId, cityName) => {
             process.env.BASE_URL || "http://localhost:8000"
           }/api/webhook/fetch-data`;
 
-      logger.info(`Triggering webhook for background fetch: ${webhookUrl}`, {
-        cityId,
-        cityName,
-        environment: process.env.NODE_ENV,
-      });
+      logger.info(`Triggering background fetch via webhook for ${cityName}`);
 
       // Fire and forget webhook call
       fetch(webhookUrl, {
@@ -36,34 +32,18 @@ const triggerBackgroundFetch = async (cityId, cityName) => {
           cityName,
         }),
       }).catch((error) => {
-        logger.error("Webhook trigger failed:", {
-          error: error.message,
-          cityId,
-          cityName,
-          webhookUrl,
-        });
+        logger.error(`Webhook trigger failed for ${cityName}:`, error.message);
       });
 
       return { triggered: true, method: "webhook" };
     } else {
       // Development environment - direct execution
-      logger.info(`Executing background fetch directly in development`, {
-        cityId,
-        cityName,
-      });
-
       const fetchData = require("../jobs/fetchData");
       await fetchData.execute(cityId, cityName);
-
       return { triggered: true, method: "direct" };
     }
   } catch (error) {
-    logger.error("Background fetch trigger error:", {
-      error: error.message,
-      cityId,
-      cityName,
-      stack: error.stack,
-    });
+    logger.error(`Background fetch trigger error for ${cityName}:`, error);
     throw error;
   }
 };

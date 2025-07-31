@@ -29,7 +29,7 @@ router.get("/:id/:city", async (req, res) => {
       });
     }
 
-    logger.info(`Events request for city: ${city} (ID: ${numericId})`);
+    logger.info(`Events request: ${city} (ID: ${numericId})`);
 
     // Check if data needs update via cache control
     const needsUpdate = await cacheControl.checkNeedsUpdate(
@@ -37,24 +37,15 @@ router.get("/:id/:city", async (req, res) => {
     );
 
     if (needsUpdate) {
-      logger.info(
-        `Cache expired for city: ${city} (ID: ${numericId}), triggering background fetch`
-      );
+      logger.info(`Cache expired for ${city}, triggering background fetch`);
 
       // Trigger background fetch using webhook approach for serverless compatibility
       backgroundJobs.triggerBackgroundFetch(numericId, city).catch((error) => {
-        logger.error(
-          `Background fetch failed for city: ${city} (ID: ${numericId})`,
-          error
-        );
+        logger.error(`Background fetch failed for ${city}:`, error);
       });
     }
 
     // Always return current database data immediately
-    logger.info(
-      `Querying database for events - City ID: ${numericId}, City: ${city}`
-    );
-
     const { data: events, error } = await supabase
       .from("partner_events")
       .select("*")
@@ -62,19 +53,10 @@ router.get("/:id/:city", async (req, res) => {
       .order("date", { ascending: true });
 
     if (error) {
-      logger.error("Database query error:", {
-        error: error,
+      logger.error(`Database query error for ${city}:`, {
         message: error.message,
-        details: error.details,
-        hint: error.hint,
         code: error.code,
         cityId: numericId,
-        city: city,
-        tableName: "partner_events",
-        queryParameters: {
-          location_id: numericId,
-          date_filter: new Date().toISOString(),
-        },
       });
 
       return res.status(500).json({
@@ -83,11 +65,7 @@ router.get("/:id/:city", async (req, res) => {
       });
     }
 
-    logger.info(
-      `Successfully queried database: found ${
-        events?.length || 0
-      } events for city: ${city} (ID: ${numericId})`
-    );
+    logger.info(`Found ${events?.length || 0} events for ${city}`);
 
     return res.json({
       data: events || [],

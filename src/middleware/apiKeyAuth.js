@@ -17,11 +17,7 @@ const apiKeyAuth = (req, res, next) => {
       process.env.API_KEYS?.split(",").map((key) => key.trim()) || [];
 
     if (!apiKey) {
-      logger.warn("API request without key", {
-        ip: req.ip,
-        path: req.path,
-        userAgent: req.get("User-Agent"),
-      });
+      logger.warn(`Unauthorized request to ${req.path} from ${req.ip}`);
 
       return res.status(401).json({
         error: "Authentication required",
@@ -36,25 +32,13 @@ const apiKeyAuth = (req, res, next) => {
     }
 
     if (!validApiKeys.includes(apiKey)) {
-      logger.warn("Invalid API key attempt", {
-        ip: req.ip,
-        path: req.path,
-        apiKey: apiKey.substring(0, 8) + "...",
-        userAgent: req.get("User-Agent"),
-      });
+      logger.warn(`Invalid API key for ${req.path} from ${req.ip}`);
 
       return res.status(403).json({
         error: "Invalid API key",
         message: "The provided API key is not valid.",
       });
     }
-
-    // Log successful authentication
-    logger.info("API request authenticated", {
-      path: req.path,
-      method: req.method,
-      apiKey: apiKey.substring(0, 8) + "...",
-    });
 
     // Continue to next middleware
     next();

@@ -2,11 +2,20 @@ const logger = require("../services/logger");
 const supabase = require("../services/supabaseClient");
 const crypto = require("crypto");
 
-const generateNumericIdFromString = (str) => {
-  // Create a hash of the string
-  const hash = crypto.createHash("md5").update(str).digest("hex");
+const generateNumericIdFromString = (str, source = "ticketmaster") => {
+  // Create a hash of the string with source prefix
+  const prefixedStr = `${source}_${str}`;
+  const hash = crypto.createHash("md5").update(prefixedStr).digest("hex");
   // Take first 12 characters and convert from hex to decimal
-  const numericId = parseInt(hash.substring(0, 12), 16);
+  let numericId = parseInt(hash.substring(0, 12), 16);
+
+  // Add source-specific offset to prevent collisions with EDM Train IDs
+  if (source === "ticketmaster") {
+    // Start Ticketmaster IDs from a high number to avoid EDM Train collisions
+    // EDM Train IDs appear to be in the 400k range, so use 1 billion offset
+    numericId = (numericId % 1000000000) + 1000000000;
+  }
+
   // Ensure it fits in JavaScript's safe integer range
   return numericId % Number.MAX_SAFE_INTEGER;
 };
@@ -39,7 +48,10 @@ const normalizeEdmTrainEvents = (events, cityId, cityName) => {
           location_id: cityId,
         };
       } catch (error) {
-        logger.error("Error transforming EDM Train event:", error, event);
+        logger.error("Error transforming EDM Train event:", {
+          error: error.message,
+          eventId: event?.id,
+        });
         return null;
       }
     })
@@ -60,7 +72,7 @@ const normalizeTicketmasterEvents = (events, cityId, cityName) => {
         const attractions = event._embedded?.attractions || [];
 
         return {
-          id: generateNumericIdFromString(`ticketmaster_${event.id}`),
+          id: generateNumericIdFromString(event.id, "ticketmaster"),
           source: "ticketmaster",
           link: event.url
             ? event.url.replace("sandiegohousemusic", "5926009")
@@ -87,7 +99,7 @@ const normalizeTicketmasterEvents = (events, cityId, cityName) => {
           createddate: new Date().toISOString(),
           venue: venue
             ? {
-                id: generateNumericIdFromString(venue.id),
+                id: generateNumericIdFromString(venue.id, "ticketmaster_venue"),
                 name: venue.name || null,
                 location: `${venue.city?.name || ""}, ${
                   venue.state?.stateCode || ""
@@ -121,14 +133,7 @@ const normalizeTicketmasterEvents = (events, cityId, cityName) => {
           error: error.message,
           eventId: event?.id,
           eventName: event?.name,
-          venue: event._embedded?.venues?.[0]?.name,
-          stackTrace: error.stack,
         });
-        console.error("Full Ticketmaster Transform Error:", error);
-        console.error(
-          "Problematic Event Data:",
-          JSON.stringify(event, null, 2)
-        );
         return null;
       }
     })

@@ -14,14 +14,12 @@ class TicketmasterService {
   }
 
   async fetchEvents(cityName) {
-    // Note: Ticketmaster doesn't require API key for basic searches, but it's recommended
-
     try {
-      logger.info(`Fetching Ticketmaster events for city: ${cityName}`);
-
-      const response = await axios.get(
-        `${this.url}${encodeURIComponent(cityName)}`
-      );
+      const cityForTicketmaster = cityName.replace(/-/g, " ");
+      const requestUrl = `${this.url}${encodeURIComponent(
+        cityForTicketmaster
+      )}`;
+      const response = await axios.get(requestUrl);
 
       if (
         response.data &&
@@ -33,6 +31,8 @@ class TicketmasterService {
           `Ticketmaster returned ${events.length} events for city: ${cityName}`
         );
         return events;
+      } else {
+        logger.info(`No Ticketmaster events found for city: ${cityName}`);
       }
 
       return [];
@@ -41,6 +41,8 @@ class TicketmasterService {
         message: error.message,
         status: error.response?.status,
         statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: `${this.url}${encodeURIComponent(cityName)}`,
       });
       throw error;
     }

@@ -6,110 +6,152 @@ const transform = require("../utils/transform");
 const logger = require("../services/logger");
 
 const execute = async (cityId, cityName) => {
-  logger.info(`Fetching data for city: ${cityName} (ID: ${cityId})`);
+  logger.info(`Starting data fetch for ${cityName} (ID: ${cityId})`);
 
   try {
-    // Fetch from both sources in parallel
-    const [edmTrainEvents, ticketmasterEvents] = await Promise.allSettled([
+    const results = await Promise.allSettled([
       edmTrainService.fetchEvents(cityId, cityName),
       ticketmasterService.fetchEvents(cityName),
     ]);
 
-    const allEvents = [];
+    // Process each source independently and serially
+    await processSourceUpdate(results[0], "edmtrain", cityId, cityName);
+    await processSourceUpdate(results[1], "ticketmaster", cityId, cityName);
 
-    // Process EDM Train results
-    if (edmTrainEvents.status === "fulfilled" && edmTrainEvents.value) {
-      const transformedEvents = transform.normalizeEdmTrainEvents(
-        edmTrainEvents.value,
-        cityId,
-        cityName
-      );
-      allEvents.push(...transformedEvents);
-      logger.info(
-        `Fetched ${transformedEvents.length} events from EDM Train for city: ${cityName} (ID: ${cityId})`
-      );
-    } else {
-      logger.warn(
-        `EDM Train fetch failed for city: ${cityName} (ID: ${cityId})`,
-        edmTrainEvents.reason
-      );
-    }
+    await cacheControl.updateCacheTimestamp(cityId.toString());
+    logger.info(`Completed data fetch for ${cityName} (ID: ${cityId})`);
+  } catch (error) {
+    logger.error(`Data fetch failed for ${cityName} (ID: ${cityId}):`, error);
+    throw error;
+  }
+};
 
-    // Process Ticketmaster results
-    if (ticketmasterEvents.status === "fulfilled" && ticketmasterEvents.value) {
-      const transformedEvents = transform.normalizeTicketmasterEvents(
-        ticketmasterEvents.value,
-        cityId,
-        cityName
-      );
-      allEvents.push(...transformedEvents);
-      logger.info(
-        `Fetched ${transformedEvents.length} events from Ticketmaster for city: ${cityName} (ID: ${cityId})`
-      );
-    } else {
-      logger.warn(
-        `Ticketmaster fetch failed for city: ${cityName} (ID: ${cityId})`,
-        ticketmasterEvents.reason
-      );
-    }
+const processSourceUpdate = async (result, source, cityId, cityName) => {
+  if (result.status === "rejected") {
+    logger.error(`${source} API failed for ${cityName}:`, result.reason);
+    return;
+  }
 
-    if (allEvents.length === 0) {
-      logger.info(`No events found for city: ${cityName} (ID: ${cityId})`);
-      // Still update cache control to prevent repeated fetches
-      await cacheControl.updateCacheTimestamp(cityId.toString());
-      return;
-    }
+  const events = result.value;
+  if (!events || events.length === 0) {
+    logger.info(`No ${source} events found for ${cityName}`);
+    return;
+  }
 
-    // Save to Supabase
-    logger.info(
-      `Attempting to save ${allEvents.length} events to database for city: ${cityName} (ID: ${cityId})`
+  // Transform events based on source
+  let transformedEvents;
+  if (source === "edmtrain") {
+    transformedEvents = transform.normalizeEdmTrainEvents(
+      events,
+      cityId,
+      cityName
     );
+  } else if (source === "ticketmaster") {
+    transformedEvents = transform.normalizeTicketmasterEvents(
+      events,
+      cityId,
+      cityName
+    );
+  } else {
+    logger.error(`Unknown source: ${source}`);
+    return;
+  }
 
-    const { data, error: upsertError } = await supabase
+  // Remove duplicates within the source
+  const idCounts = {};
+  const duplicateIds = [];
+  transformedEvents.forEach((event) => {
+    if (idCounts[event.id]) {
+      idCounts[event.id]++;
+      if (idCounts[event.id] === 2) {
+        duplicateIds.push(event.id);
+      }
+    } else {
+      idCounts[event.id] = 1;
+    }
+  });
+
+  if (duplicateIds.length > 0) {
+    const uniqueEvents = [];
+    const seenIds = new Set();
+    transformedEvents.forEach((event) => {
+      if (!seenIds.has(event.id)) {
+        seenIds.add(event.id);
+        uniqueEvents.push(event);
+      }
+    });
+    transformedEvents = uniqueEvents;
+    logger.warn(
+      `Removed ${duplicateIds.length} duplicate ${source} events for ${cityName}`
+    );
+  }
+
+  try {
+    // Delete existing events from this source
+    const { error: deleteError } = await supabase
       .from("partner_events")
-      .upsert(allEvents, { onConflict: "id" })
+      .delete()
+      .eq("location_id", cityId)
+      .eq("source", source);
+
+    if (deleteError) {
+      logger.error(
+        `Failed to clear ${source} events for ${cityName}:`,
+        deleteError
+      );
+      throw deleteError;
+    }
+
+    // Check for ID conflicts with other sources
+    const eventIds = transformedEvents.map((e) => e.id);
+    const { data: conflictingEvents } = await supabase
+      .from("partner_events")
+      .select("id, source, location_id")
+      .in("id", eventIds);
+
+    if (conflictingEvents && conflictingEvents.length > 0) {
+      const conflictingIds = new Set(conflictingEvents.map((e) => e.id));
+      const originalCount = transformedEvents.length;
+      transformedEvents = transformedEvents.filter(
+        (event) => !conflictingIds.has(event.id)
+      );
+
+      if (originalCount > transformedEvents.length) {
+        logger.warn(
+          `Removed ${
+            originalCount - transformedEvents.length
+          } conflicting ${source} events for ${cityName}`
+        );
+      }
+
+      if (transformedEvents.length === 0) {
+        logger.warn(
+          `No ${source} events left after conflict resolution for ${cityName}`
+        );
+        return;
+      }
+    }
+
+    // Insert new events
+    const { data, error: insertError } = await supabase
+      .from("partner_events")
+      .insert(transformedEvents)
       .select();
 
-    if (upsertError) {
-      logger.error(
-        `Failed to save events to database for city: ${cityName} (ID: ${cityId})`
-      );
-      logger.error(`Supabase Error Details:`, {
-        message: upsertError.message,
-        details: upsertError.details,
-        hint: upsertError.hint,
-        code: upsertError.code,
+    if (insertError) {
+      logger.error(`Failed to insert ${source} events for ${cityName}:`, {
+        message: insertError.message,
+        code: insertError.code,
+        eventsCount: transformedEvents.length,
       });
-      logger.error(`Event Data Debug:`, {
-        eventsCount: allEvents.length,
-        sampleEventKeys: Object.keys(allEvents[0] || {}),
-        firstEventId: allEvents[0]?.id,
-        firstEventStructure: JSON.stringify(allEvents[0], null, 2),
-      });
-      console.error(
-        "Full Supabase Error Object:",
-        JSON.stringify(upsertError, null, 2)
-      );
-      throw upsertError;
+      throw insertError;
     }
 
     logger.info(
-      `Successfully saved ${
-        data?.length || 0
-      } events to database for city: ${cityName} (ID: ${cityId})`
-    );
-
-    // Update cache control timestamp after successful database save
-    await cacheControl.updateCacheTimestamp(cityId.toString());
-
-    logger.info(
-      `Successfully processed ${allEvents.length} events for city: ${cityName} (ID: ${cityId})`
+      `Updated ${data?.length || 0} ${source} events for ${cityName}`
     );
   } catch (error) {
-    logger.error(
-      `Data fetch job failed for city: ${cityName} (ID: ${cityId})`,
-      error
-    );
+    logger.error(`Failed to update ${source} events for ${cityName}:`, error);
     throw error;
   }
 };
