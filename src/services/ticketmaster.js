@@ -14,6 +14,8 @@ class TicketmasterService {
   }
 
   async fetchEvents(cityName) {
+    if (cityName === "null") return []; // Handle null city case state ID is passed
+
     try {
       const cityForTicketmaster = cityName.replace(/-/g, " ");
       const requestUrl = `${this.url}${encodeURIComponent(
