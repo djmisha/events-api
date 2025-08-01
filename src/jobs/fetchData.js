@@ -87,68 +87,34 @@ const processSourceUpdate = async (result, source, cityId, cityName) => {
   }
 
   try {
-    // Delete existing events from this source
-    const { error: deleteError } = await supabase
+    // Upsert new/updated events for this source (conflict on 'id' only)
+    const { data, error: upsertError } = await supabase
       .from("partner_events")
-      .delete()
-      .eq("location_id", cityId)
-      .eq("source", source);
-
-    if (deleteError) {
-      logger.error(
-        `Failed to clear ${source} events for ${cityName}:`,
-        deleteError
-      );
-      throw deleteError;
-    }
-
-    // Check for ID conflicts with other sources
-    const eventIds = transformedEvents.map((e) => e.id);
-    const { data: conflictingEvents } = await supabase
-      .from("partner_events")
-      .select("id, source, location_id")
-      .in("id", eventIds);
-
-    if (conflictingEvents && conflictingEvents.length > 0) {
-      const conflictingIds = new Set(conflictingEvents.map((e) => e.id));
-      const originalCount = transformedEvents.length;
-      transformedEvents = transformedEvents.filter(
-        (event) => !conflictingIds.has(event.id)
-      );
-
-      if (originalCount > transformedEvents.length) {
-        logger.warn(
-          `Removed ${
-            originalCount - transformedEvents.length
-          } conflicting ${source} events for ${cityName}`
-        );
-      }
-
-      if (transformedEvents.length === 0) {
-        logger.warn(
-          `No ${source} events left after conflict resolution for ${cityName}`
-        );
-        return;
-      }
-    }
-
-    // Insert new events
-    const { data, error: insertError } = await supabase
-      .from("partner_events")
-      .insert(transformedEvents)
+      .upsert(transformedEvents, {
+        onConflict: ["id"],
+      })
       .select();
 
-    if (insertError) {
-      logger.error(`Failed to insert ${source} events for ${cityName}:`, {
-        message: insertError.message,
-        code: insertError.code,
-        eventsCount: transformedEvents.length,
-      });
-      throw insertError;
+    if (upsertError) {
+      logger.error(
+        `Failed to upsert ${source} events for ${cityName}: ${JSON.stringify(
+          upsertError
+        )}`,
+        {
+          upsertError: JSON.stringify(upsertError),
+          eventsCount: transformedEvents.length,
+          eventsSample: JSON.stringify(transformedEvents.slice(0, 2)),
+          eventKeys: transformedEvents[0]
+            ? Object.keys(transformedEvents[0])
+            : [],
+          rawResponse: JSON.stringify({ data, error: upsertError }),
+        }
+      );
+      throw upsertError;
     }
 
     logger.info(
-      `Updated ${data?.length || 0} ${source} events for ${cityName}`
+      `Upserted ${data?.length || 0} ${source} events for ${cityName}`
     );
   } catch (error) {
     logger.error(`Failed to update ${source} events for ${cityName}:`, error);
