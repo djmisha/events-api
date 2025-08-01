@@ -1,7 +1,15 @@
 const logger = require("./logger");
-
-// Import fetch for Node.js environments that don't have it built-in
 const fetch = globalThis.fetch || require("node-fetch");
+
+// Construct the webhook URL based on environment
+function getWebhookUrl() {
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}/api/webhook/fetch-data`;
+  }
+  return `${
+    process.env.BASE_URL || "http://localhost:8000"
+  }/api/webhook/fetch-data`;
+}
 
 /**
  * Triggers background data fetching based on environment
@@ -11,13 +19,7 @@ const fetch = globalThis.fetch || require("node-fetch");
 const triggerBackgroundFetch = async (cityId, cityName) => {
   try {
     if (process.env.VERCEL || process.env.NODE_ENV === "production") {
-      // Serverless environment - use webhook approach
-      const webhookUrl = process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}/api/webhook/fetch-data`
-        : `${
-            process.env.BASE_URL || "http://localhost:8000"
-          }/api/webhook/fetch-data`;
-
+      const webhookUrl = getWebhookUrl();
       logger.info(`Triggering background fetch via webhook for ${cityName}`);
 
       // Fire and forget webhook call

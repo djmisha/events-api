@@ -31,20 +31,6 @@ router.get("/:id/:city", async (req, res) => {
 
     logger.info(`Events request: ${city} (ID: ${numericId})`);
 
-    // Check if data needs update via cache control
-    const needsUpdate = await cacheControl.checkNeedsUpdate(
-      numericId.toString()
-    );
-
-    if (needsUpdate) {
-      logger.info(`Cache expired for ${city}, triggering background fetch`);
-
-      // Trigger background fetch using webhook approach for serverless compatibility
-      backgroundJobs.triggerBackgroundFetch(numericId, city).catch((error) => {
-        logger.error(`Background fetch failed for ${city}:`, error);
-      });
-    }
-
     // Always return current database data immediately
     const { data: events, error } = await supabase
       .from("partner_events")
@@ -67,13 +53,27 @@ router.get("/:id/:city", async (req, res) => {
 
     logger.info(`Found ${events?.length || 0} events for ${city}`);
 
+    // Check if data needs update via cache control
+    const needsUpdate = await cacheControl.checkNeedsUpdate(
+      numericId.toString()
+    );
+
+    if (needsUpdate) {
+      logger.info(`Cache expired for ${city}, triggering background fetch`);
+
+      // Trigger background fetch using webhook approach for serverless compatibility
+      backgroundJobs.triggerBackgroundFetch(numericId, city).catch((error) => {
+        logger.error(`Background fetch failed for ${city}:`, error);
+      });
+    }
+
     return res.json({
-      data: events || [],
       source: "database",
       id: numericId,
       city: city,
       cacheStatus: needsUpdate ? "updating" : "fresh",
       count: events?.length || 0,
+      data: events || [],
     });
   } catch (error) {
     logger.error("Events endpoint error:", error);

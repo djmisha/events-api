@@ -1,7 +1,7 @@
 const supabase = require("./supabaseClient");
 const logger = require("./logger");
 
-// Cache configuration constants
+// Cache configuration
 const HOURS = 12;
 const CACHE_MAX_AGE = HOURS * 60 * 60;
 
