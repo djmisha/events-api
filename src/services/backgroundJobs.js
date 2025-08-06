@@ -4,11 +4,11 @@ const fetch = globalThis.fetch || require("node-fetch");
 // Construct the webhook URL based on environment
 function getWebhookUrl() {
   if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}/api/webhook/fetch-data`;
+    return `https://${process.env.VERCEL_URL}/api/webhook/fetch-partner-data`;
   }
   return `${
     process.env.BASE_URL || "http://localhost:8000"
-  }/api/webhook/fetch-data`;
+  }/api/webhook/fetch-partner-data`;
 }
 
 /**
@@ -40,8 +40,8 @@ const triggerBackgroundFetch = async (cityId, cityName) => {
       return { triggered: true, method: "webhook" };
     } else {
       // Development environment - direct execution
-      const fetchData = require("../jobs/fetchData");
-      await fetchData.execute(cityId, cityName);
+      const fetchPartnerData = require("../jobs/fetchPartnerData");
+      await fetchPartnerData.execute(cityId, cityName);
       return { triggered: true, method: "direct" };
     }
   } catch (error) {

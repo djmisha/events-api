@@ -20,7 +20,7 @@ This approach is **fully stateless** and **serverless-ready** (Vercel, AWS Lambd
 2. **Cache Control Service** – Database-driven TTL management using Supabase `cache_control` table (6-hour TTL).
 3. **Supabase (PostgreSQL)** – Persistent storage for events and cache metadata.
 4. **Webhook System** – Serverless-compatible background processing:
-   - `/api/webhook/fetch-data` endpoint for async data fetching.
+   - `/api/webhook/fetch-partner-data` endpoint for async data fetching.
    - Automatic environment detection (direct execution in dev, webhook in production).
 5. **External APIs** – EDM Train and Ticketmaster as data providers.
 6. **Transform & Validation Utilities** – Normalize external data into a unified schema.
@@ -45,12 +45,12 @@ This approach is **fully stateless** and **serverless-ready** (Vercel, AWS Lambd
    - Include `cacheStatus` field indicating if data is being refreshed.
 
 3. **Background Refresh** (if needed):
-   - **Development**: Direct execution of `fetchData.execute()`.
-   - **Production**: Webhook call to `/api/webhook/fetch-data`.
+   - **Development**: Direct execution of `fetchPartnerData.execute()`.
+   - **Production**: Webhook call to `/api/webhook/fetch-partner-data`.
 
 ### 3.2 Background Data Fetch (Webhook-based)
 
-1. **Webhook Trigger**: POST to `/api/webhook/fetch-data` with city parameters.
+1. **Webhook Trigger**: POST to `/api/webhook/fetch-partner-data` with city parameters.
 2. **Data Fetching**: Parallel calls to EDM Train + Ticketmaster APIs.
 3. **Transform & Store**: Normalize data → upsert to `partner_events` table.
 4. **Cache Update**: Update `cache_control` table with new timestamp.
@@ -110,7 +110,7 @@ CREATE INDEX idx_cache_control_next_update ON cache_control (next_update);
 - **Returns**: Current database events with cache status.
 - **Behavior**: If cache is stale → triggers background refresh + returns existing data.
 
-### GET `/api/webhook/fetch-data` (POST)
+### GET `/api/webhook/fetch-partner-data` (POST)
 
 - **Purpose**: Serverless-compatible background data fetching.
 - **Authentication**: Bearer token via `WEBHOOK_SECRET`.
@@ -133,7 +133,7 @@ CREATE INDEX idx_cache_control_next_update ON cache_control (next_update);
 
 ```
 
-/events-api ├── /src │ ├── /api │ │ ├── events.js # /api/v1/events/:id/:city route │ │ ├── webhook.js # Webhook endpoints for serverless │ │ ├── health.js # Health check │ │ └── test.js # Development testing endpoints │ ├── /jobs │ │ ├── fetchData.js # Combined data fetching logic │ │ └── cleanup.js # Delete old events (manual) │ ├── /services │ │ ├── edmTrain.js # EDM Train API client │ │ ├── ticketmaster.js # Ticketmaster API client │ │ ├── supabaseClient.js # Supabase helper │ │ ├── cacheControl.js # Database-driven cache management │ │ ├── backgroundJobs.js # Webhook/direct execution handler │ │ └── logger.js # Logging utility │ ├── /utils │ │ ├── transform.js # Data transformation logic │ │ └── validate.js # Optional validation │ ├── /database │ │ └── cache_control.sql # Database schema for cache table │ └── server.js # Express app entry point ├── vercel.json # Vercel deployment configuration ├── .env.vercel.template # Environment variables template └── package.json # Dependencies and scripts
+/events-api ├── /src │ ├── /api │ │ ├── events.js # /api/v1/events/:id/:city route │ │ ├── webhook.js # Webhook endpoints for serverless │ │ ├── health.js # Health check │ │ └── test.js # Development testing endpoints │ ├── /jobs │ │ ├── fetchPartnerData.js # Combined data fetching logic │ │ └── cleanup.js # Delete old events (manual) │ ├── /services │ │ ├── edmTrain.js # EDM Train API client │ │ ├── ticketmaster.js # Ticketmaster API client │ │ ├── supabaseClient.js # Supabase helper │ │ ├── cacheControl.js # Database-driven cache management │ │ ├── backgroundJobs.js # Webhook/direct execution handler │ │ └── logger.js # Logging utility │ ├── /utils │ │ ├── transform.js # Data transformation logic │ │ └── validate.js # Optional validation │ ├── /database │ │ └── cache_control.sql # Database schema for cache table │ └── server.js # Express app entry point ├── vercel.json # Vercel deployment configuration ├── .env.vercel.template # Environment variables template └── package.json # Dependencies and scripts
 
 ```
 

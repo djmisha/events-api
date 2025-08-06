@@ -31,7 +31,7 @@ This is an Express.js project for managing events with serverless-compatible arc
 
 - **Serverless-ready**: No server-side state or memory dependencies
 - **Database-driven cache**: Use Supabase `cache_control` table for TTL management
-- **Webhook-based background jobs**: Use `/api/webhook/fetch-data` for async processing
+- **Webhook-based background jobs**: Use `/api/webhook/fetch-partner-data` for async processing
 - **Environment detection**: Direct execution in dev, webhook calls in production
 
 ## Development

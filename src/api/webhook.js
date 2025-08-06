@@ -1,5 +1,5 @@
 const express = require("express");
-const fetchData = require("../jobs/fetchData");
+const fetchPartnerData = require("../jobs/fetchPartnerData");
 const logger = require("../services/logger");
 
 const router = express.Router();
@@ -8,7 +8,7 @@ const router = express.Router();
  * Webhook endpoint for background data fetching
  * Used in serverless environments to handle async processing
  */
-router.post("/fetch-data", async (req, res) => {
+router.post("/fetch-partner-data", async (req, res) => {
   try {
     // Basic authentication check
     const authHeader = req.headers.authorization;
@@ -54,7 +54,7 @@ router.post("/fetch-data", async (req, res) => {
 
     // Execute the background fetch
     const startTime = Date.now();
-    await fetchData.execute(numericCityId, cityName);
+    await fetchPartnerData.execute(numericCityId, cityName);
     const duration = Date.now() - startTime;
 
     logger.info(`Webhook fetch completed successfully`, {
@@ -72,7 +72,7 @@ router.post("/fetch-data", async (req, res) => {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    logger.error("Webhook fetch-data error:", {
+    logger.error("Webhook fetch-partner-data error:", {
       error: error.message,
       stack: error.stack,
       body: req.body,

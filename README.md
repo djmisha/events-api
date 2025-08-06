@@ -217,7 +217,7 @@ Check API health and service status.
 }
 ```
 
-#### POST `/api/webhook/fetch-data`
+#### POST `/api/webhook/fetch-partner-data`
 
 Serverless background data fetching endpoint (internal use).
 
@@ -264,7 +264,7 @@ Test both APIs and see combined results.
 │   │   ├── health.js          # Health check
 │   │   └── test.js            # Test endpoints (dev only)
 │   ├── /jobs
-│   │   ├── fetchData.js       # Combined data fetching logic
+│   │   ├── fetchPartnerData.js       # Combined data fetching logic
 │   │   └── cleanup.js         # Manual cleanup job
 │   ├── /services
 │   │   ├── edmTrain.js        # EDM Train API client
@@ -315,7 +315,7 @@ PORT=8000
 4. **Immediate Response**: Return current data with cache status
 5. **Background Refresh** (if stale):
    - Development: Direct execution
-   - Production: Webhook call to `/api/webhook/fetch-data`
+   - Production: Webhook call to `/api/webhook/fetch-partner-data`
 6. **Background Update**: Fetch → Transform → Save → Update cache timestamp
 
 ## Serverless Benefits

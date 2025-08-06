@@ -52,7 +52,7 @@ app.get("/", (req, res) => {
       example: "/api/v1/events/71/chicago",
     },
     webhook: {
-      path: "/api/webhook/fetch-data",
+      path: "/api/webhook/fetch-partner-data",
       authentication: "WEBHOOK_SECRET required",
       method: "POST",
       note: "For background processing only",
