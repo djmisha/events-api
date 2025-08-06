@@ -62,8 +62,12 @@ router.get("/:id/:city", async (req, res) => {
       logger.info(`Cache expired for ${city}, triggering background fetch`);
 
       // Trigger background fetch using webhook approach for serverless compatibility
-      backgroundJobs.triggerBackgroundFetch(numericId, city).catch((error) => {
-        logger.error(`Background fetch failed for ${city}:`, error);
+      setImmediate(() => {
+        backgroundJobs
+          .triggerBackgroundFetch(numericId, city)
+          .catch((error) => {
+            logger.error(`Background fetch failed for ${city}:`, error);
+          });
       });
     }
 
