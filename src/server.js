@@ -41,7 +41,8 @@ if (process.env.NODE_ENV === "development") {
 
 // Root endpoint
 app.get("/", (req, res) => {
-  if (process.env.NODE_ENV != "development") res.status(404).send("Not Found");
+  if (process.env.NODE_ENV != "development")
+    return res.status(404).send("Not Found");
 
   // Show default endpoints and authentication methods only in development
   const endpoints = {
