@@ -75,7 +75,7 @@ This is a serverless-ready Express.js API for aggregating event data from multip
 
 ### Serverless-Ready Design
 - **No server-side state or memory dependencies** - all state in database
-- **Database-driven cache** using Supabase `cache_control` table (6-hour TTL)
+- **Database-driven cache** using Supabase `cache_control` table (12-hour TTL)
 - **Stateless request handling** - each request is independent
 - **Webhook-based background jobs** for async processing (`/api/webhook/fetch-partner-data`)
 - **Environment detection**: Direct execution in development, webhook calls in production
@@ -97,12 +97,16 @@ This is a serverless-ready Express.js API for aggregating event data from multip
 ## Dependencies and Internal Libraries
 
 ### Core Dependencies
-- **express** - Web framework
-- **@supabase/supabase-js** - Database client for PostgreSQL operations
-- **axios** - HTTP client for external API calls (EDM Train, Ticketmaster)
-- **joi** - Request validation and data schema validation
-- **dotenv** - Environment variable management
-- **cors** - Cross-origin resource sharing middleware
+- **express** (^4.18.2) - Web framework
+- **@supabase/supabase-js** (^2.38.0) - Database client for PostgreSQL operations
+- **axios** (^1.6.0) - HTTP client for external API calls (EDM Train, Ticketmaster)
+- **joi** (^17.11.0) - Request validation and data schema validation
+- **dotenv** (^16.3.1) - Environment variable management
+- **cors** (^2.8.5) - Cross-origin resource sharing middleware
+- **pino** (^8.16.0) - Structured logging library
+- **uuid** (^9.0.1) - UUID generation for unique identifiers
+
+**Note**: Keep dependencies updated regularly for security patches. Check for updates with `npm outdated`.
 
 ### Logging
 - **Always use `logger`** from `src/services/logger.js`, never `console.log()`
@@ -190,7 +194,9 @@ When adding test endpoints:
 ```bash
 # Database
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_KEY=your-service-key  # Preferred for full access
+# OR
+SUPABASE_ANON_KEY=your-anon-key        # Fallback option (limited access)
 
 # External APIs
 EDM_TRAIN_CLIENT_ID=your-client-id
@@ -216,12 +222,22 @@ LOG_LEVEL=info|debug|warn|error
 
 ### Tables
 - **`partner_events`** - Stores event data from external APIs
-- **`cache_control`** - Manages cache TTL per location (6-hour default)
+  - Key fields: `id` (primary key), `source`, `name`, `venue`, `location_id`, `date`, `artistlist`
+- **`cache_control`** - Manages cache TTL per location (12-hour default)
+  - Key fields:
+    - `location_id` (primary key, TEXT) - City/location identifier
+    - `last_update` (TIMESTAMP) - When data was last refreshed
+    - `next_update` (TIMESTAMP) - When next refresh is needed (last_update + TTL)
+    - `created_at`, `updated_at` (TIMESTAMP) - Record metadata
 
 ### Cache Control Management
 - Use **`src/services/cacheControl.js`** for all cache operations
-- Methods: `shouldRefresh()`, `markRefreshed()`, `getCacheStatus()`
-- TTL is **6 hours** by default (configurable in database)
+- Methods:
+  - `checkNeedsUpdate(locationId)` - Returns true if cache is stale (past next_update time)
+  - `updateCacheTimestamp(locationId)` - Sets new timestamps after data refresh
+  - `ensureCacheEntry(locationId)` - Creates cache entry if it doesn't exist
+- TTL is **12 hours** by default (configurable via `CACHE_MAX_AGE` constant)
+- Cache entries are automatically created on first request if missing
 
 ## Data Transformation
 
