@@ -31,6 +31,7 @@ This system provides an Express.js API to serve event data stored in a Supabase 
 - 🧹 **Manual cleanup** - Remove expired events via npm script
 - 📊 **Health monitoring** - Database connectivity checks
 - 📝 **Structured logging** - Comprehensive request and error tracking
+- 🛡️ **Rate limiting** - Protection against API abuse with configurable limits
 
 ## Getting Started
 
@@ -197,6 +198,7 @@ GET /api/v1/events/456/new%20york
 - `200`: Events returned successfully
 - `202`: Background fetch triggered, data being updated
 - `400`: Invalid parameters
+- `429`: Rate limit exceeded (too many requests)
 - `500`: Server error
 
 #### GET `/health`
@@ -253,6 +255,29 @@ Test Ticketmaster API directly.
 
 Test both APIs and see combined results.
 
+## Rate Limiting
+
+All API endpoints are protected with rate limiting to prevent abuse and ensure fair usage:
+
+- **API Endpoints** (`/api/v1/*`): 100 requests per 15 minutes per IP address
+- **Webhook Endpoints** (`/api/webhook/*`): 30 requests per 15 minutes per IP address
+- **Test Endpoints** (`/api/test/*`): 200 requests per 15 minutes per IP address (development only)
+
+When rate limit is exceeded, the API returns a `429 Too Many Requests` response with:
+
+```json
+{
+  "error": "Too many requests",
+  "message": "You have exceeded the rate limit. Please try again later.",
+  "retryAfter": "15 minutes"
+}
+```
+
+Rate limit information is included in response headers:
+- `RateLimit-Limit`: Maximum requests allowed in the window
+- `RateLimit-Remaining`: Number of requests remaining
+- `RateLimit-Reset`: Time when the rate limit resets
+
 ## Project Structure
 
 ```
@@ -266,6 +291,9 @@ Test both APIs and see combined results.
 │   ├── /jobs
 │   │   ├── fetchPartnerData.js       # Combined data fetching logic
 │   │   └── cleanup.js         # Manual cleanup job
+│   ├── /middleware
+│   │   ├── apiKeyAuth.js      # API key authentication
+│   │   └── rateLimiter.js     # Rate limiting middleware
 │   ├── /services
 │   │   ├── edmTrain.js        # EDM Train API client
 │   │   ├── ticketmaster.js    # Ticketmaster API client
