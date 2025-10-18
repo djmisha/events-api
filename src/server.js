@@ -8,6 +8,11 @@ const testRouter = require("./api/test");
 const webhookRouter = require("./api/webhook");
 const logger = require("./services/logger");
 const apiKeyAuth = require("./middleware/apiKeyAuth");
+const {
+  apiLimiter,
+  webhookLimiter,
+  testLimiter,
+} = require("./middleware/rateLimiter");
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -26,17 +31,17 @@ app.use((req, res, next) => {
 });
 
 // Protected API Routes (require API key)
-app.use("/api/v1/events", apiKeyAuth, eventsRouter);
+app.use("/api/v1/events", apiLimiter, apiKeyAuth, eventsRouter);
 
 // Webhook routes (use their own WEBHOOK_SECRET authentication)
-app.use("/api/webhook", webhookRouter);
+app.use("/api/webhook", webhookLimiter, webhookRouter);
 
 // Public routes (no API key required)
 app.use("/health", healthRouter);
 
 // Test routes (only in development, no API key for easier testing)
 if (process.env.NODE_ENV === "development") {
-  app.use("/api/test", testRouter);
+  app.use("/api/test", testLimiter, testRouter);
 }
 
 // Root endpoint
