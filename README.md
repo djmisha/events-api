@@ -14,6 +14,12 @@ This system provides an Express.js API to serve event data stored in a Supabase 
 
 **Key Benefits**: Fully stateless, serverless-ready, fast responses, scalable across instances.
 
+### API Options
+
+This API supports **both REST and GraphQL** interfaces:
+- **REST API**: Traditional endpoints for fetching events and data
+- **GraphQL API**: Flexible querying with precise data fetching (see [GraphQL Implementation Guide](./GRAPHQL_IMPLEMENTATION.md))
+
 ## Architecture
 
 - **Express.js API** – Serves `/api/v1/events/:id/:city`, manages cache control
@@ -31,6 +37,8 @@ This system provides an Express.js API to serve event data stored in a Supabase 
 - 🧹 **Manual cleanup** - Remove expired events via npm script
 - 📊 **Health monitoring** - Database connectivity checks
 - 📝 **Structured logging** - Comprehensive request and error tracking
+- 🎯 **GraphQL Support** - Flexible data querying with GraphQL API
+- 🔒 **Unified Authentication** - Same API key system for REST and GraphQL
 
 ## Getting Started
 
@@ -163,6 +171,34 @@ The server will start on port 8000 by default. You can set a different port usin
 
 ### Main Endpoints
 
+#### POST `/graphql`
+
+GraphQL endpoint for flexible data querying. Requires API key authentication.
+
+**Example Query:**
+
+```graphql
+query {
+  artist(id: "1") {
+    name
+    slug
+    bio
+    tags
+  }
+}
+```
+
+**cURL Example:**
+
+```bash
+curl -X POST http://localhost:8000/graphql \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: YOUR_API_KEY" \
+  -d '{"query": "{ artist(id: \"1\") { name slug } }"}'
+```
+
+For complete GraphQL documentation, see [GRAPHQL_IMPLEMENTATION.md](./GRAPHQL_IMPLEMENTATION.md).
+
 #### GET `/api/v1/events/:id/:city`
 
 Fetch events for a specific city using path parameters.
@@ -263,6 +299,12 @@ Test both APIs and see combined results.
 │   │   ├── webhook.js         # Webhook endpoints
 │   │   ├── health.js          # Health check
 │   │   └── test.js            # Test endpoints (dev only)
+│   ├── /graphql               # GraphQL implementation
+│   │   ├── /schemas           # GraphQL type definitions
+│   │   │   └── artist.js      # Artist schema
+│   │   ├── /resolvers         # GraphQL resolvers
+│   │   │   └── artist.js      # Artist resolvers
+│   │   └── index.js           # GraphQL server setup
 │   ├── /jobs
 │   │   ├── fetchPartnerData.js       # Combined data fetching logic
 │   │   └── cleanup.js         # Manual cleanup job
@@ -276,12 +318,15 @@ Test both APIs and see combined results.
 │   ├── /utils
 │   │   ├── transform.js       # Data transformation logic
 │   │   └── validate.js        # Data validation
+│   ├── /middleware
+│   │   └── apiKeyAuth.js      # API key authentication
 │   ├── /database
 │   │   └── cache_control.sql  # Database schema
 │   └── server.js              # Express app entry point
 ├── vercel.json                # Vercel deployment config
 ├── .env.vercel.template       # Environment variables template
 ├── package.json               # Dependencies and scripts
+├── GRAPHQL_IMPLEMENTATION.md  # GraphQL documentation
 └── README.md                  # This file
 ```
 

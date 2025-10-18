@@ -8,6 +8,7 @@ const testRouter = require("./api/test");
 const webhookRouter = require("./api/webhook");
 const logger = require("./services/logger");
 const apiKeyAuth = require("./middleware/apiKeyAuth");
+const { createGraphQLServer, getGraphQLMiddleware } = require("./graphql");
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -39,6 +40,33 @@ if (process.env.NODE_ENV === "development") {
   app.use("/api/test", testRouter);
 }
 
+// GraphQL endpoint placeholder - initializes lazily on first request
+let graphqlMiddleware = null;
+
+app.use("/graphql", async (req, res, next) => {
+  // Lazy initialization of GraphQL server
+  if (!graphqlMiddleware) {
+    try {
+      const graphqlServer = await createGraphQLServer();
+      graphqlMiddleware = getGraphQLMiddleware(graphqlServer);
+      logger.info("GraphQL server initialized on first request");
+    } catch (error) {
+      logger.error("Failed to initialize GraphQL server:", error);
+      return res.status(500).json({
+        error: "GraphQL server unavailable",
+        message: "Failed to initialize GraphQL server",
+      });
+    }
+  }
+  
+  // Apply API key authentication
+  apiKeyAuth(req, res, (err) => {
+    if (err) return next(err);
+    // Forward to GraphQL middleware
+    graphqlMiddleware(req, res, next);
+  });
+});
+
 // Root endpoint
 app.get("/", (req, res) => {
   if (process.env.NODE_ENV != "development")
@@ -46,6 +74,13 @@ app.get("/", (req, res) => {
 
   // Show default endpoints and authentication methods only in development
   const endpoints = {
+    graphql: {
+      path: "/graphql",
+      authentication: "API Key required",
+      type: "GraphQL",
+      playground: process.env.NODE_ENV === "development" ? "Available" : "Disabled",
+      example: "POST to /graphql with query in body",
+    },
     events: {
       path: "/api/v1/events/:id/:city",
       authentication: "API Key required",
