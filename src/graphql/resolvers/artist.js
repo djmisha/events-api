@@ -33,7 +33,9 @@ const artistResolvers = {
           });
           
           // Return null if not found (404), throw error for other cases
-          if (error.code === "PGRST116") {
+          // PGRST116 is Supabase/PostgREST error code for "no rows returned" from .single()
+          const SUPABASE_NOT_FOUND = "PGRST116";
+          if (error.code === SUPABASE_NOT_FOUND) {
             return null;
           }
           

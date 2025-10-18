@@ -42,16 +42,31 @@ if (process.env.NODE_ENV === "development") {
 
 // GraphQL endpoint placeholder - initializes lazily on first request
 let graphqlMiddleware = null;
+let graphqlInitPromise = null;
 
 app.use("/graphql", async (req, res, next) => {
-  // Lazy initialization of GraphQL server
+  // Lazy initialization of GraphQL server with race condition prevention
   if (!graphqlMiddleware) {
+    // If initialization is already in progress, wait for it
+    if (!graphqlInitPromise) {
+      graphqlInitPromise = createGraphQLServer()
+        .then((server) => {
+          graphqlMiddleware = getGraphQLMiddleware(server);
+          logger.info("GraphQL server initialized on first request");
+          return graphqlMiddleware;
+        })
+        .catch((error) => {
+          logger.error("Failed to initialize GraphQL server:", error);
+          // Reset promise so initialization can be retried
+          graphqlInitPromise = null;
+          throw error;
+        });
+    }
+
     try {
-      const graphqlServer = await createGraphQLServer();
-      graphqlMiddleware = getGraphQLMiddleware(graphqlServer);
-      logger.info("GraphQL server initialized on first request");
+      // Wait for initialization to complete
+      await graphqlInitPromise;
     } catch (error) {
-      logger.error("Failed to initialize GraphQL server:", error);
       return res.status(500).json({
         error: "GraphQL server unavailable",
         message: "Failed to initialize GraphQL server",
