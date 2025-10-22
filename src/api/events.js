@@ -3,6 +3,7 @@ const supabase = require("../services/supabaseClient");
 const logger = require("../services/logger");
 const cacheControl = require("../services/cacheControl");
 const backgroundJobs = require("../services/backgroundJobs");
+const normalizedData = require("../services/normalizedData");
 
 const router = express.Router();
 
@@ -31,14 +32,11 @@ router.get("/:id/:city", async (req, res) => {
 
     logger.info(`Events request: ${city} (ID: ${numericId})`);
 
-    // Always return current database data immediately
-    const { data: events, error } = await supabase
-      .from("partner_events")
-      .select("*")
-      .eq("location_id", numericId)
-      .order("date", { ascending: true });
-
-    if (error) {
+    // Fetch events with normalized venue and artists data
+    let events;
+    try {
+      events = await normalizedData.getEventsWithRelations(numericId);
+    } catch (error) {
       logger.error(`Database query error for ${city}:`, {
         message: error.message,
         code: error.code,

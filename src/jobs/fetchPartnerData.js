@@ -4,6 +4,7 @@ const supabase = require("../services/supabaseClient");
 const cacheControl = require("../services/cacheControl");
 const transform = require("../utils/transform");
 const logger = require("../services/logger");
+const normalizedData = require("../services/normalizedData");
 
 const execute = async (cityId, cityName) => {
   logger.info(`Starting data fetch for ${cityName} (ID: ${cityId})`);
@@ -87,34 +88,14 @@ const processSourceUpdate = async (result, source, cityId, cityName) => {
   }
 
   try {
-    // Upsert new/updated events for this source (conflict on 'id' only)
-    const { data, error: upsertError } = await supabase
-      .from("partner_events")
-      .upsert(transformedEvents, {
-        onConflict: ["id"],
-      })
-      .select();
-
-    if (upsertError) {
-      logger.error(
-        `Failed to upsert ${source} events for ${cityName}: ${JSON.stringify(
-          upsertError
-        )}`,
-        {
-          upsertError: JSON.stringify(upsertError),
-          eventsCount: transformedEvents.length,
-          eventsSample: JSON.stringify(transformedEvents.slice(0, 2)),
-          eventKeys: transformedEvents[0]
-            ? Object.keys(transformedEvents[0])
-            : [],
-          rawResponse: JSON.stringify({ data, error: upsertError }),
-        }
-      );
-      throw upsertError;
-    }
+    // Use normalized data service to upsert events with venues and artists
+    const result = await normalizedData.upsertEventsWithRelations(
+      transformedEvents,
+      source
+    );
 
     logger.info(
-      `Upserted ${data?.length || 0} ${source} events for ${cityName}`
+      `Upserted ${result.success} ${source} events for ${cityName} (${result.failed} failed)`
     );
   } catch (error) {
     logger.error(`Failed to update ${source} events for ${cityName}:`, error);

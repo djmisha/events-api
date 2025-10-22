@@ -44,41 +44,25 @@ This system provides an Express.js API to serve event data stored in a Supabase 
 
 ### Database Setup
 
-Create the required tables in your Supabase database:
+The system uses a normalized relational schema for venues, artists, and events.
 
-```sql
--- Events table
-CREATE TABLE partner_events (
-  id BIGINT PRIMARY KEY,
-  source TEXT,
-  name TEXT,
-  venue JSONB,
-  location_id INTEGER,
-  date DATE,
-  starttime TIME,
-  endtime TIME,
-  link TEXT,
-  ages TEXT,
-  festivalind BOOLEAN,
-  livestreamind BOOLEAN,
-  electronicgenreind BOOLEAN,
-  othergenreind BOOLEAN,
-  artistlist JSONB,
-  createddate TIMESTAMP DEFAULT NOW()
-);
+#### Initial Setup (for new installations)
 
--- Cache control table
-CREATE TABLE cache_control (
-  location_id TEXT PRIMARY KEY,
-  last_update TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  next_update TIMESTAMP WITH TIME ZONE DEFAULT NOW() + INTERVAL '6 hours',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+Run the migration SQL file in your Supabase SQL Editor:
+- File: `src/database/migrations/001_create_normalized_tables.sql`
+- This creates: `partner_events`, `partner_venues`, `partner_artists`, `partner_event_artists`, and `cache_control` tables
 
--- Index for efficient cache queries
-CREATE INDEX idx_cache_control_next_update ON cache_control (next_update);
-```
+#### Migration (for existing installations)
+
+If you have an existing database with JSONB venue/artist data:
+
+1. **Backup your database** in Supabase dashboard
+2. Run migration: `npm run migrate` (displays instructions)
+3. Execute migration SQL in Supabase SQL Editor
+4. Run backfill: `npm run backfill`
+5. Validate migration: Follow steps in `MIGRATION_GUIDE.md`
+
+See the comprehensive [Migration Guide](./MIGRATION_GUIDE.md) for detailed steps.
 
 ### Installation
 
@@ -183,12 +167,33 @@ GET /api/v1/events/456/new%20york
 
 ```json
 {
-  "data": [...events],
   "source": "database",
   "id": 71,
   "city": "chicago",
   "cacheStatus": "fresh",
-  "count": 45
+  "count": 45,
+  "data": [
+    {
+      "id": 12345,
+      "name": "Event Name",
+      "date": "2025-11-01",
+      "starttime": "20:00:00",
+      "venue": {
+        "id": "uuid",
+        "name": "Venue Name",
+        "city": "Chicago",
+        "state": "IL",
+        "country": "USA"
+      },
+      "artists": [
+        {
+          "id": "uuid",
+          "name": "Artist Name",
+          "external_id": "edmtrain:123"
+        }
+      ]
+    }
+  ]
 }
 ```
 
