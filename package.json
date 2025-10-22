@@ -9,6 +9,7 @@
     "cleanup": "node -e \"require('./src/jobs/cleanup').execute()\"",
     "migrate": "node src/database/migrate.js",
     "backfill": "node src/database/backfill.js",
+    "validate": "node src/database/validate.js",
     "build": "echo 'No build step required for Node.js API'",
     "vercel-build": "echo 'Vercel build complete'",
     "test": "echo \"Error: no test specified\" && exit 1"
