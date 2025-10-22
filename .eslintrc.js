@@ -19,5 +19,7 @@ module.exports = {
     "comma-dangle": "off",
     "operator-linebreak": "off",
     indent: "off",
+    "import/extensions": "off",
+    "import/no-unresolved": "off",
   },
 };

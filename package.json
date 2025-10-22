@@ -4,11 +4,11 @@
   "description": "Event Aggregator API with Supabase Cache Control",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
-    "cleanup": "node -e \"require('./src/jobs/cleanup').execute()\"",
-    "build": "echo 'No build step required for Node.js API'",
-    "vercel-build": "echo 'Vercel build complete'",
+    "start": "node dist/server.js",
+    "dev": "nodemon --exec ts-node src/server.ts",
+    "build": "tsc",
+    "cleanup": "ts-node -e \"require('./src/jobs/cleanup').execute()\"",
+    "vercel-build": "tsc",
     "lint": "./scripts/pre-commit.sh",
     "test": "echo \"Error: no test specified\" && exit 1",
     "prepare": "husky"
@@ -26,12 +26,20 @@
     "uuid": "^9.0.1"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.9.1",
+    "@types/uuid": "^10.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.46.2",
+    "@typescript-eslint/parser": "^8.46.2",
     "eslint": "^8.57.1",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-plugin-import": "^2.32.0",
     "husky": "^9.1.7",
-    "nodemon": "^3.0.1",
-    "prettier": "^3.6.2"
+    "nodemon": "^3.1.10",
+    "prettier": "^3.6.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
   },
   "keywords": [
     "events",

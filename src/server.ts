@@ -1,0 +1,125 @@
+import express, { Request, Response, NextFunction } from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+
+import eventsRouter from "./api/events";
+import healthRouter from "./api/health";
+import testRouter from "./api/test";
+import webhookRouter from "./api/webhook";
+import logger from "./services/logger";
+import apiKeyAuth from "./middleware/apiKeyAuth";
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 8000;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Request logging middleware
+app.use((req: Request, res: Response, next: NextFunction) => {
+  // Only log API routes, skip health checks and static assets
+  if (req.path.startsWith("/api/")) {
+    logger.info(`${req.method} ${req.path}`);
+  }
+  next();
+});
+
+// Protected API Routes (require API key)
+app.use("/api/v1/events", apiKeyAuth, eventsRouter);
+
+// Webhook routes (use their own WEBHOOK_SECRET authentication)
+app.use("/api/webhook", webhookRouter);
+
+// Public routes (no API key required)
+app.use("/health", healthRouter);
+
+// Test routes (only in development, no API key for easier testing)
+if (process.env.NODE_ENV === "development") {
+  app.use("/api/test", testRouter);
+}
+
+// Root endpoint
+app.get("/", (req: Request, res: Response) => {
+  if (process.env.NODE_ENV !== "development") {
+    return res.status(404).send("Not Found");
+  }
+
+  // Show default endpoints and authentication methods only in development
+  const endpoints = {
+    events: {
+      path: "/api/v1/events/:id/:city",
+      authentication: "API Key required",
+      example: "/api/v1/events/71/chicago",
+    },
+    webhook: {
+      path: "/api/webhook/fetch-partner-data",
+      authentication: "WEBHOOK_SECRET required",
+      method: "POST",
+      note: "For background processing only",
+    },
+    health: {
+      path: "/health",
+      authentication: "None (public)",
+    },
+    test: {
+      path: "/api/test/*",
+      authentication: "None (development only)",
+      examples: [
+        "/api/test/edmtrain/71/chicago",
+        "/api/test/ticketmaster/71/chicago",
+        "/api/test/combined/71/chicago",
+      ],
+    },
+  };
+
+  const authMethods = {
+    apiKey: [
+      "Header: x-api-key: YOUR_API_KEY",
+      "Query param: ?api_key=YOUR_API_KEY",
+      "Bearer token: Authorization: Bearer YOUR_API_KEY",
+    ],
+    webhook: ["Header: Authorization: Bearer YOUR_WEBHOOK_SECRET"],
+  };
+
+  res.json({
+    message: "Events API with Authentication",
+    version: "1.0.0",
+    environment: process.env.NODE_ENV || "development",
+    architecture: "serverless-ready",
+    caching: "Supabase cache_control table (6 hour TTL)",
+    endpoints,
+    authentication: authMethods,
+  });
+});
+
+// Error handling middleware
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  logger.error("Unhandled error:", err);
+  res.status(500).json({
+    error: "Internal server error",
+    message:
+      process.env.NODE_ENV === "development"
+        ? err.message
+        : "Something went wrong",
+  });
+});
+
+// 404 handler
+app.use("*", (req: Request, res: Response) => {
+  res.status(404).json({
+    error: "Route not found",
+    path: req.originalUrl,
+  });
+});
+
+// Only start the server in development or when running standalone (not serverless)
+if (require.main === module) {
+  app.listen(PORT, () => {
+    logger.info(`Events API server running on port ${PORT}`);
+  });
+}
+
+export default app;
