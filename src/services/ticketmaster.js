@@ -16,9 +16,7 @@ class TicketmasterService {
   async fetchEvents(cityName) {
     try {
       const cityForTicketmaster = cityName.replace(/-/g, " ");
-      const requestUrl = `${this.url}${encodeURIComponent(
-        cityForTicketmaster
-      )}`;
+      const requestUrl = `${this.url}${encodeURIComponent(cityForTicketmaster)}`;
       const response = await axios.get(requestUrl);
 
       if (

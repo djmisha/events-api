@@ -101,9 +101,8 @@ const normalizeTicketmasterEvents = (events, cityId, cityName) => {
             ? {
                 id: generateNumericIdFromString(venue.id, "ticketmaster_venue"),
                 name: venue.name || null,
-                location: `${venue.city?.name || ""}, ${
-                  venue.state?.stateCode || ""
-                }`.trim(),
+                location:
+                  `${venue.city?.name || ""}, ${venue.state?.stateCode || ""}`.trim(),
                 address: venue.address?.line1 || null,
                 state: venue.state?.name || null,
                 country: venue.country?.name || null,

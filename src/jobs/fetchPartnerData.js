@@ -97,9 +97,7 @@ const processSourceUpdate = async (result, source, cityId, cityName) => {
 
     if (upsertError) {
       logger.error(
-        `Failed to upsert ${source} events for ${cityName}: ${JSON.stringify(
-          upsertError
-        )}`,
+        `Failed to upsert ${source} events for ${cityName}: ${JSON.stringify(upsertError)}`,
         {
           upsertError: JSON.stringify(upsertError),
           eventsCount: transformedEvents.length,

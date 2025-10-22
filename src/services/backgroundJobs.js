@@ -6,9 +6,7 @@ function getWebhookUrl() {
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL}/api/webhook/fetch-partner-data`;
   }
-  return `${
-    process.env.BASE_URL || "http://localhost:8000"
-  }/api/webhook/fetch-partner-data`;
+  return `${process.env.BASE_URL || "http://localhost:8000"}/api/webhook/fetch-partner-data`;
 }
 
 /**
