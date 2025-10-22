@@ -1,10 +1,10 @@
 # Events API
 
-**Serverless Event Aggregator API** - Fetches and serves event data from EDM Train and Ticketmaster APIs with database-driven cache control.
+**Serverless Event Aggregator API** - TypeScript-based API that fetches and serves event data from EDM Train and Ticketmaster APIs with database-driven cache control.
 
 ## Overview
 
-This system provides an Express.js API to serve event data stored in a Supabase database. It uses a **serverless-compatible approach** with database-driven cache management:
+This system provides a TypeScript Express.js API to serve event data stored in a Supabase database. It uses a **serverless-compatible approach** with database-driven cache management:
 
 - Each request checks a **cache control table** for data freshness (6-hour TTL)
 - If data is stale, the system:
@@ -12,11 +12,11 @@ This system provides an Express.js API to serve event data stored in a Supabase 
   - Triggers **webhook-based background fetch** for fresh data
   - Subsequent requests receive updated data from the database
 
-**Key Benefits**: Fully stateless, serverless-ready, fast responses, scalable across instances.
+**Key Benefits**: Fully stateless, serverless-ready, fast responses, scalable across instances, type-safe with TypeScript.
 
 ## Architecture
 
-- **Express.js API** – Serves `/api/v1/events/:id/:city`, manages cache control
+- **TypeScript Express.js API** – Serves `/api/v1/events/:id/:city`, manages cache control
 - **Cache Control Service** – Database-driven TTL management via Supabase table
 - **Supabase (PostgreSQL)** – Persistent storage for events and cache metadata
 - **Webhook System** – Serverless-compatible background processing
@@ -31,6 +31,8 @@ This system provides an Express.js API to serve event data stored in a Supabase 
 - 🧹 **Manual cleanup** - Remove expired events via npm script
 - 📊 **Health monitoring** - Database connectivity checks
 - 📝 **Structured logging** - Comprehensive request and error tracking
+- 🔒 **Type Safety** - Full TypeScript implementation with strict typing
+- 🛠️ **Developer Experience** - ESLint, Prettier, and pre-commit hooks
 
 ## Getting Started
 
@@ -38,6 +40,7 @@ This system provides an Express.js API to serve event data stored in a Supabase 
 
 - Node.js (v18 or higher)
 - npm
+- TypeScript (installed as dev dependency)
 - Supabase account and project
 - EDM Train Client ID
 - Ticketmaster API credentials
@@ -109,6 +112,7 @@ CREATE INDEX idx_cache_control_next_update ON cache_control (next_update);
    TICKETMASTER_API_KEY=your-api-key
    TICKETMASTER_SECRET=your-secret
    WEBHOOK_SECRET=your-secure-random-string
+   API_KEYS=your-api-key-for-authentication
    ```
 
 ### Running the Application
@@ -119,13 +123,16 @@ CREATE INDEX idx_cache_control_next_update ON cache_control (next_update);
 npm run dev
 ```
 
-This starts the server with nodemon for automatic restarts on file changes.
+This starts the TypeScript server with ts-node and nodemon for automatic restarts on file changes.
 
 #### Production Mode
 
 ```bash
+npm run build
 npm start
 ```
+
+The build command compiles TypeScript to JavaScript in the `dist/` directory.
 
 #### Manual Cleanup
 
@@ -134,6 +141,24 @@ To remove expired events from the database:
 ```bash
 npm run cleanup
 ```
+
+### Development Tools
+
+#### TypeScript Compilation
+
+```bash
+npm run build
+```
+
+Compiles TypeScript files to the `dist/` directory with source maps and type declarations.
+
+#### Code Quality
+
+```bash
+npm run lint
+```
+
+Runs ESLint on both JavaScript and TypeScript files, Prettier for formatting, and TypeScript compiler checks.
 
 ### Deployment
 
@@ -152,135 +177,41 @@ npm run cleanup
    vercel --prod
    ```
 
-The server will start on port 8000 by default. You can set a different port using the `PORT` environment variable.
-
-## API Endpoints
-
-### Base URL
-
-- **Development**: `http://localhost:8000`
-- **Production**: `https://your-app.vercel.app`
-
-### Main Endpoints
-
-#### GET `/api/v1/events/:id/:city`
-
-Fetch events for a specific city using path parameters.
-
-**Parameters:**
-
-- `id` (required): Numeric city identifier
-- `city` (required): URL-encoded city name
-
-**Example:**
-
-```
-GET /api/v1/events/71/chicago
-GET /api/v1/events/456/new%20york
-```
-
-**Response:**
-
-```json
-{
-  "data": [...events],
-  "source": "database",
-  "id": 71,
-  "city": "chicago",
-  "cacheStatus": "fresh",
-  "count": 45
-}
-```
-
-**Status Codes:**
-
-- `200`: Events returned successfully
-- `202`: Background fetch triggered, data being updated
-- `400`: Invalid parameters
-- `500`: Server error
-
-#### GET `/health`
-
-Check API health and service status.
-
-**Response:**
-
-```json
-{
-  "status": "OK",
-  "timestamp": "2025-07-27T15:00:00.000Z",
-  "uptime": 123.456,
-  "environment": "production",
-  "services": {
-    "database": "OK"
-  }
-}
-```
-
-#### POST `/api/webhook/fetch-partner-data`
-
-Serverless background data fetching endpoint (internal use).
-
-**Headers:**
-
-```
-Authorization: Bearer <WEBHOOK_SECRET>
-Content-Type: application/json
-```
-
-**Body:**
-
-```json
-{
-  "cityId": "71",
-  "cityName": "chicago"
-}
-```
-
-### Test Endpoints (Development Only)
-
-Available when `NODE_ENV=development`:
-
-#### GET `/api/test/edmtrain/:id/:city`
-
-Test EDM Train API directly.
-
-#### GET `/api/test/ticketmaster/:id/:city`
-
-Test Ticketmaster API directly.
-
-#### GET `/api/test/combined/:id/:city`
-
-Test both APIs and see combined results.
+The TypeScript code is automatically compiled during the build process.
 
 ## Project Structure
 
 ```
 /events-api
-├── /src
+├── /src                        # TypeScript source files
 │   ├── /api
-│   │   ├── events.js          # Main events endpoint
-│   │   ├── webhook.js         # Webhook endpoints
-│   │   ├── health.js          # Health check
-│   │   └── test.js            # Test endpoints (dev only)
+│   │   ├── events.ts          # Main events endpoint
+│   │   ├── webhook.ts         # Webhook endpoints
+│   │   ├── health.ts          # Health check
+│   │   └── test.ts            # Test endpoints (dev only)
 │   ├── /jobs
-│   │   ├── fetchPartnerData.js       # Combined data fetching logic
-│   │   └── cleanup.js         # Manual cleanup job
+│   │   ├── fetchPartnerData.ts       # Combined data fetching logic
+│   │   └── cleanup.ts         # Manual cleanup job
 │   ├── /services
-│   │   ├── edmTrain.js        # EDM Train API client
-│   │   ├── ticketmaster.js    # Ticketmaster API client
-│   │   ├── supabaseClient.js  # Supabase helper
-│   │   ├── cacheControl.js    # Database cache management
-│   │   ├── backgroundJobs.js  # Webhook/direct execution handler
-│   │   └── logger.js          # Logging utility
+│   │   ├── edmTrain.ts        # EDM Train API client
+│   │   ├── ticketmaster.ts    # Ticketmaster API client
+│   │   ├── supabaseClient.ts  # Supabase helper
+│   │   ├── cacheControl.ts    # Database cache management
+│   │   ├── backgroundJobs.ts  # Webhook/direct execution handler
+│   │   └── logger.ts          # Logging utility
+│   ├── /middleware
+│   │   └── apiKeyAuth.ts      # API key authentication
 │   ├── /utils
-│   │   ├── transform.js       # Data transformation logic
-│   │   └── validate.js        # Data validation
-│   ├── /database
-│   │   └── cache_control.sql  # Database schema
-│   └── server.js              # Express app entry point
+│   │   ├── transform.ts       # Data transformation logic
+│   │   └── validate.ts        # Data validation
+│   ├── /types
+│   │   └── index.ts           # TypeScript type definitions
+│   └── server.ts              # Express app entry point
+├── /dist                       # Compiled JavaScript (generated)
+├── tsconfig.json              # TypeScript configuration
+├── .eslintrc.js               # ESLint configuration
+├── .prettierrc                # Prettier configuration
 ├── vercel.json                # Vercel deployment config
-├── .env.vercel.template       # Environment variables template
 ├── package.json               # Dependencies and scripts
 └── README.md                  # This file
 ```
@@ -299,6 +230,9 @@ EDM_TRAIN_CLIENT_ID=your-client-id
 TICKETMASTER_API_KEY=your-api-key
 TICKETMASTER_SECRET=your-secret
 
+# Authentication
+API_KEYS=comma,separated,api,keys
+
 # Webhook Security
 WEBHOOK_SECRET=your-secure-random-string
 
@@ -307,31 +241,30 @@ NODE_ENV=production
 PORT=8000
 ```
 
-## Data Flow
+## TypeScript Features
 
-1. **User Request**: GET `/api/v1/events/:id/:city`
-2. **Cache Check**: Query `cache_control` table for TTL status
-3. **Database Query**: Fetch current events from `partner_events` table
-4. **Immediate Response**: Return current data with cache status
-5. **Background Refresh** (if stale):
-   - Development: Direct execution
-   - Production: Webhook call to `/api/webhook/fetch-partner-data`
-6. **Background Update**: Fetch → Transform → Save → Update cache timestamp
+- **Strict Type Checking**: Full type safety with strict TypeScript configuration
+- **Interface Definitions**: Well-defined types for events, cache control, and API responses
+- **Error Handling**: Proper error typing and type guards
+- **IDE Support**: Enhanced autocomplete, refactoring, and error detection
+- **Build-time Validation**: Catch errors during compilation rather than runtime
 
-## Serverless Benefits
+## Development Workflow
 
-- ✅ **Stateless**: No server-side memory dependencies
-- ✅ **Scalable**: Database-driven cache works across instances
-- ✅ **Fast**: Always returns current data immediately
-- ✅ **Reliable**: Webhook-based background processing
-- ✅ **Cost-effective**: No always-on background processes
+The project includes comprehensive development tools:
+
+- **Pre-commit Hooks**: Automatically run Prettier, ESLint, and TypeScript compilation
+- **Code Formatting**: Prettier with double quotes and 80-character line width
+- **Linting**: ESLint with Airbnb configuration for both JS and TS files
+- **Type Checking**: Strict TypeScript compilation with source maps
 
 ## Contributing
 
 1. Follow the coding conventions in `.github/copilot-instructions.md`
-2. Test endpoints thoroughly
-3. Ensure proper error handling
-4. Update documentation for new features
+2. Ensure TypeScript compilation passes: `npm run build`
+3. Run linting and formatting: `npm run lint`
+4. Test endpoints thoroughly
+5. Update type definitions when adding new features
 
 ## License
 

@@ -11,12 +11,16 @@ fi
 echo "✅ Prettier passed"
 
 echo "🔍 Running ESLint on JavaScript files..."
-npx eslint src/ --ext .js
-if [ $? -ne 0 ]; then
-  echo "❌ ESLint (JS) failed"
-  exit 1
+if find src -name "*.js" -type f | grep -q .; then
+  npx eslint src/ --ext .js
+  if [ $? -ne 0 ]; then
+    echo "❌ ESLint (JS) failed"
+    exit 1
+  fi
+  echo "✅ ESLint (JS) passed"
+else
+  echo "✅ ESLint (JS) skipped - no JS files found"
 fi
-echo "✅ ESLint (JS) passed"
 
 echo "🔍 Running ESLint on TypeScript files..."
 npx eslint src/ --ext .ts
