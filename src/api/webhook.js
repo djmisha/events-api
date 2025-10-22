@@ -39,7 +39,7 @@ router.post("/fetch-partner-data", async (req, res) => {
     }
 
     const numericCityId = parseInt(cityId, 10);
-    if (isNaN(numericCityId)) {
+    if (Number.isNaN(numericCityId)) {
       logger.error("Invalid cityId in webhook", { cityId, cityName });
       return res.status(400).json({
         error: "Invalid cityId",
@@ -57,7 +57,7 @@ router.post("/fetch-partner-data", async (req, res) => {
     await fetchPartnerData.execute(numericCityId, cityName);
     const duration = Date.now() - startTime;
 
-    logger.info(`Webhook fetch completed successfully`, {
+    logger.info("Webhook fetch completed successfully", {
       cityId: numericCityId,
       cityName,
       duration: `${duration}ms`,

@@ -24,14 +24,13 @@ class TicketmasterService {
         response.data._embedded &&
         response.data._embedded.events
       ) {
-        const events = response.data._embedded.events;
+        const { events } = response.data._embedded;
         logger.info(
           `Ticketmaster returned ${events.length} events for city: ${cityName}`
         );
         return events;
-      } else {
-        logger.info(`No Ticketmaster events found for city: ${cityName}`);
       }
+      logger.info(`No Ticketmaster events found for city: ${cityName}`);
 
       return [];
     } catch (error) {

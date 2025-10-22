@@ -21,7 +21,7 @@ router.get("/:id/:city", async (req, res) => {
 
     // Validate ID is a number
     const numericId = parseInt(id, 10);
-    if (isNaN(numericId)) {
+    if (Number.isNaN(numericId)) {
       return res.status(400).json({
         error: "Invalid ID parameter",
         message: "ID must be a numeric value",
@@ -65,8 +65,8 @@ router.get("/:id/:city", async (req, res) => {
       setImmediate(() => {
         backgroundJobs
           .triggerBackgroundFetch(numericId, city)
-          .catch((error) => {
-            logger.error(`Background fetch failed for ${city}:`, error);
+          .catch((fetchError) => {
+            logger.error(`Background fetch failed for ${city}:`, fetchError);
           });
       });
     }
@@ -74,7 +74,7 @@ router.get("/:id/:city", async (req, res) => {
     return res.json({
       source: "database",
       id: numericId,
-      city: city,
+      city,
       cacheStatus: needsUpdate ? "updating" : "fresh",
       count: events?.length || 0,
       data: events || [],

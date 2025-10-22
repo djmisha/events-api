@@ -36,12 +36,11 @@ const triggerBackgroundFetch = async (cityId, cityName) => {
       });
 
       return { triggered: true, method: "webhook" };
-    } else {
-      // Development environment - direct execution
-      const fetchPartnerData = require("../jobs/fetchPartnerData");
-      await fetchPartnerData.execute(cityId, cityName);
-      return { triggered: true, method: "direct" };
     }
+    // Development environment - direct execution
+    const fetchPartnerData = require("../jobs/fetchPartnerData");
+    await fetchPartnerData.execute(cityId, cityName);
+    return { triggered: true, method: "direct" };
   } catch (error) {
     logger.error(`Background fetch trigger error for ${cityName}:`, error);
     throw error;

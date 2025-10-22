@@ -20,7 +20,7 @@ router.get("/edmtrain/:id/:city", async (req, res) => {
     }
 
     const numericId = parseInt(id, 10);
-    if (isNaN(numericId)) {
+    if (Number.isNaN(numericId)) {
       return res.status(400).json({
         error: "Invalid id parameter",
         message: "id must be a numeric value",
@@ -42,7 +42,7 @@ router.get("/edmtrain/:id/:city", async (req, res) => {
     res.json({
       source: "edmtrain",
       id: numericId,
-      city: city,
+      city,
       rawCount: rawEvents.length,
       transformedCount: transformedEvents.length,
       rawData: rawEvents,
@@ -72,7 +72,7 @@ router.get("/ticketmaster/:id/:city", async (req, res) => {
     }
 
     const numericId = parseInt(id, 10);
-    if (isNaN(numericId)) {
+    if (Number.isNaN(numericId)) {
       return res.status(400).json({
         error: "Invalid id parameter",
         message: "id must be a numeric value",
@@ -96,7 +96,7 @@ router.get("/ticketmaster/:id/:city", async (req, res) => {
     res.json({
       source: "ticketmaster",
       id: numericId,
-      city: city,
+      city,
       rawCount: rawEvents.length,
       transformedCount: transformedEvents.length,
       rawData: rawEvents,
@@ -126,7 +126,7 @@ router.get("/combined/:id/:city", async (req, res) => {
     }
 
     const numericId = parseInt(id, 10);
-    if (isNaN(numericId)) {
+    if (Number.isNaN(numericId)) {
       return res.status(400).json({
         error: "Invalid id parameter",
         message: "id must be a numeric value",
@@ -143,7 +143,7 @@ router.get("/combined/:id/:city", async (req, res) => {
 
     const results = {
       id: numericId,
-      city: city,
+      city,
       edmtrain: {
         status: edmTrainResult.status,
         data:

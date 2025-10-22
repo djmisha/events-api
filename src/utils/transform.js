@@ -1,6 +1,5 @@
-const logger = require("../services/logger");
-const supabase = require("../services/supabaseClient");
 const crypto = require("crypto");
+const logger = require("../services/logger");
 
 const generateNumericIdFromString = (str, source = "ticketmaster") => {
   // Create a hash of the string with source prefix
@@ -20,7 +19,7 @@ const generateNumericIdFromString = (str, source = "ticketmaster") => {
   return numericId % Number.MAX_SAFE_INTEGER;
 };
 
-const normalizeEdmTrainEvents = (events, cityId, cityName) => {
+const normalizeEdmTrainEvents = (events, cityId) => {
   if (!Array.isArray(events)) {
     logger.warn("EDM Train events is not an array");
     return [];
@@ -58,7 +57,7 @@ const normalizeEdmTrainEvents = (events, cityId, cityName) => {
     .filter(Boolean);
 };
 
-const normalizeTicketmasterEvents = (events, cityId, cityName) => {
+const normalizeTicketmasterEvents = (events, cityId) => {
   if (!Array.isArray(events)) {
     logger.warn("Ticketmaster events is not an array");
     return [];
@@ -117,7 +116,8 @@ const normalizeTicketmasterEvents = (events, cityId, cityName) => {
           artistlist: attractions.map((attraction) => ({
             id: parseInt(
               attraction.id?.replace(/[^0-9]/g, "") ||
-                Math.floor(Math.random() * 100000)
+                Math.floor(Math.random() * 100000),
+              10
             ),
             name: attraction.name || null,
             link: attraction.url

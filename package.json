@@ -9,7 +9,9 @@
     "cleanup": "node -e \"require('./src/jobs/cleanup').execute()\"",
     "build": "echo 'No build step required for Node.js API'",
     "vercel-build": "echo 'Vercel build complete'",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "lint": "./scripts/pre-commit.sh",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "husky"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.38.0",
@@ -24,6 +26,10 @@
     "uuid": "^9.0.1"
   },
   "devDependencies": {
+    "eslint": "^8.57.1",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.32.0",
+    "husky": "^9.1.7",
     "nodemon": "^3.0.1",
     "prettier": "^3.6.2"
   },
