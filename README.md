@@ -162,22 +162,49 @@ Runs ESLint on both JavaScript and TypeScript files, Prettier for formatting, an
 
 ### Deployment
 
-#### Vercel Deployment
+#### Vercel Deployment (TypeScript)
 
-1. Install Vercel CLI:
+The project is configured for seamless TypeScript deployment on Vercel:
+
+1. **Install Vercel CLI:**
 
    ```bash
    npm i -g vercel
    ```
 
-2. Set environment variables in Vercel dashboard
+2. **Set environment variables in Vercel dashboard:**
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_KEY` 
+   - `API_KEYS`
+   - `WEBHOOK_SECRET`
+   - `EDM_TRAIN_CLIENT_ID`
+   - `TICKETMASTER_API_KEY`
 
-3. Deploy:
+3. **Deploy:**
    ```bash
    vercel --prod
    ```
 
-The TypeScript code is automatically compiled during the build process.
+**Deployment Process:**
+- Vercel automatically runs `npm run build` (TypeScript compilation)
+- Compiled JavaScript is served from `/dist` directory
+- Serverless functions use the compiled code for optimal performance
+- Source maps are included for debugging
+
+**Vercel Configuration:**
+- `vercel.json` handles TypeScript build process
+- `api/index.js` imports compiled server from `/dist`
+- Functions include compiled assets via `includeFiles`
+
+#### Local Production Testing
+
+Test the production build locally:
+
+```bash
+npm run test-build
+```
+
+This compiles TypeScript and runs the production server.
 
 ## Project Structure
 
