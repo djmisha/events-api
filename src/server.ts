@@ -1,13 +1,15 @@
-const express = require("express");
-const cors = require("cors");
-require("dotenv").config();
+import express, { Request, Response, NextFunction } from "express";
+import cors from "cors";
+import dotenv from "dotenv";
 
-const eventsRouter = require("./api/events");
-const healthRouter = require("./api/health");
-const testRouter = require("./api/test");
-const webhookRouter = require("./api/webhook");
-const logger = require("./services/logger");
-const apiKeyAuth = require("./middleware/apiKeyAuth");
+import eventsRouter from "./api/events";
+import healthRouter from "./api/health";
+import testRouter from "./api/test";
+import webhookRouter from "./api/webhook";
+import logger from "./services/logger";
+import apiKeyAuth from "./middleware/apiKeyAuth";
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -17,7 +19,7 @@ app.use(cors());
 app.use(express.json());
 
 // Request logging middleware
-app.use((req, res, next) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
   // Only log API routes, skip health checks and static assets
   if (req.path.startsWith("/api/")) {
     logger.info(`${req.method} ${req.path}`);
@@ -40,9 +42,10 @@ if (process.env.NODE_ENV === "development") {
 }
 
 // Root endpoint
-app.get("/", (req, res) => {
-  if (process.env.NODE_ENV != "development")
+app.get("/", (req: Request, res: Response) => {
+  if (process.env.NODE_ENV !== "development") {
     return res.status(404).send("Not Found");
+  }
 
   // Show default endpoints and authentication methods only in development
   const endpoints = {
@@ -61,18 +64,15 @@ app.get("/", (req, res) => {
       path: "/health",
       authentication: "None (public)",
     },
-  };
-
-  // Add test endpoints in development
-
-  endpoints.test = {
-    path: "/api/test/*",
-    authentication: "None (development only)",
-    examples: [
-      "/api/test/edmtrain/71/chicago",
-      "/api/test/ticketmaster/71/chicago",
-      "/api/test/combined/71/chicago",
-    ],
+    test: {
+      path: "/api/test/*",
+      authentication: "None (development only)",
+      examples: [
+        "/api/test/edmtrain/71/chicago",
+        "/api/test/ticketmaster/71/chicago",
+        "/api/test/combined/71/chicago",
+      ],
+    },
   };
 
   const authMethods = {
@@ -96,7 +96,7 @@ app.get("/", (req, res) => {
 });
 
 // Error handling middleware
-app.use((err, req, res, next) => {
+app.use((err: Error, req: Request, res: Response) => {
   logger.error("Unhandled error:", err);
   res.status(500).json({
     error: "Internal server error",
@@ -108,7 +108,7 @@ app.use((err, req, res, next) => {
 });
 
 // 404 handler
-app.use("*", (req, res) => {
+app.use("*", (req: Request, res: Response) => {
   res.status(404).json({
     error: "Route not found",
     path: req.originalUrl,
@@ -122,5 +122,4 @@ if (require.main === module) {
   });
 }
 
-// Export the app for Vercel
-module.exports = app;
+export default app;

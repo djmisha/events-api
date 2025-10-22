@@ -1,14 +1,16 @@
-const logger = require("./logger");
-const fetch = globalThis.fetch || require("node-fetch");
+import logger from "./logger";
 
 // Construct the webhook URL based on environment
-function getWebhookUrl() {
+function getWebhookUrl(): string {
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL}/api/webhook/fetch-partner-data`;
   }
-  return `${
-    process.env.BASE_URL || "http://localhost:8000"
-  }/api/webhook/fetch-partner-data`;
+  return `${process.env.BASE_URL || "http://localhost:8000"}/api/webhook/fetch-partner-data`;
+}
+
+interface BackgroundFetchResult {
+  triggered: boolean;
+  method: "webhook" | "direct";
 }
 
 /**
@@ -16,7 +18,10 @@ function getWebhookUrl() {
  * In Vercel (serverless), uses webhook approach
  * In development, executes directly
  */
-const triggerBackgroundFetch = async (cityId, cityName) => {
+const triggerBackgroundFetch = async (
+  cityId: number,
+  cityName: string
+): Promise<BackgroundFetchResult> => {
   try {
     if (process.env.VERCEL || process.env.NODE_ENV === "production") {
       const webhookUrl = getWebhookUrl();
@@ -38,18 +43,17 @@ const triggerBackgroundFetch = async (cityId, cityName) => {
       });
 
       return { triggered: true, method: "webhook" };
-    } else {
-      // Development environment - direct execution
-      const fetchPartnerData = require("../jobs/fetchPartnerData");
-      await fetchPartnerData.execute(cityId, cityName);
-      return { triggered: true, method: "direct" };
     }
+    // Development environment - direct execution
+    const fetchPartnerData = await import("../jobs/fetchPartnerData");
+    await fetchPartnerData.execute(cityId, cityName);
+    return { triggered: true, method: "direct" };
   } catch (error) {
     logger.error(`Background fetch trigger error for ${cityName}:`, error);
     throw error;
   }
 };
 
-module.exports = {
+export default {
   triggerBackgroundFetch,
 };

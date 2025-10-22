@@ -1,7 +1,28 @@
-const axios = require("axios");
-const logger = require("./logger");
+import axios from "axios";
+import logger from "./logger";
+
+interface EdmTrainEvent {
+  id: string;
+  name: string;
+  venue: {
+    name: string;
+    address?: string;
+  };
+  date: string;
+  startTime?: string;
+  endTime?: string;
+  link?: string;
+  ages?: string;
+  artistList?: Array<{
+    id: string;
+    name: string;
+  }>;
+}
 
 class EdmTrainService {
+  private apiKey: string | undefined;
+  private baseURL: string | undefined;
+
   constructor() {
     this.apiKey = process.env.EDM_TRAIN_API_KEY;
     this.baseURL = process.env.EDM_TRAIN_API_URL;
@@ -11,7 +32,10 @@ class EdmTrainService {
     }
   }
 
-  async fetchEvents(cityId, cityName) {
+  async fetchEvents(
+    cityId: number,
+    cityName: string
+  ): Promise<EdmTrainEvent[]> {
     if (!this.apiKey) {
       logger.warn("EDM Train API key not available, skipping fetch");
       return [];
@@ -33,9 +57,13 @@ class EdmTrainService {
       logger.error(
         `EDM Train API error for city: ${cityName} (ID: ${cityId})`,
         {
-          message: error.message,
-          status: error.response?.status,
-          statusText: error.response?.statusText,
+          message: error instanceof Error ? error.message : "Unknown error",
+          status: axios.isAxiosError(error)
+            ? error.response?.status
+            : undefined,
+          statusText: axios.isAxiosError(error)
+            ? error.response?.statusText
+            : undefined,
         }
       );
       throw error;
@@ -43,4 +71,4 @@ class EdmTrainService {
   }
 }
 
-module.exports = new EdmTrainService();
+export default new EdmTrainService();

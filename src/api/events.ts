@@ -1,12 +1,13 @@
-const express = require("express");
-const supabase = require("../services/supabaseClient");
-const logger = require("../services/logger");
-const cacheControl = require("../services/cacheControl");
-const backgroundJobs = require("../services/backgroundJobs");
+import express, { Request, Response } from "express";
+import supabase from "../services/supabaseClient";
+import logger from "../services/logger";
+import cacheControl from "../services/cacheControl";
+import backgroundJobs from "../services/backgroundJobs";
+import { PartnerEvent, ApiResponse } from "../types";
 
 const router = express.Router();
 
-router.get("/:id/:city", async (req, res) => {
+router.get("/:id/:city", async (req: Request, res: Response) => {
   try {
     const { id, city } = req.params;
 
@@ -21,7 +22,7 @@ router.get("/:id/:city", async (req, res) => {
 
     // Validate ID is a number
     const numericId = parseInt(id, 10);
-    if (isNaN(numericId)) {
+    if (Number.isNaN(numericId)) {
       return res.status(400).json({
         error: "Invalid ID parameter",
         message: "ID must be a numeric value",
@@ -29,56 +30,48 @@ router.get("/:id/:city", async (req, res) => {
       });
     }
 
-    logger.info(`Events request: ${city} (ID: ${numericId})`);
+    // Check cache status
+    const cacheStatus = await cacheControl.getCacheStatus(numericId.toString());
+    logger.info(`Cache status for ${city} (${numericId}): ${cacheStatus}`);
 
-    // Always return current database data immediately
+    // Always fetch current data from database first
     const { data: events, error } = await supabase
       .from("partner_events")
       .select("*")
       .eq("location_id", numericId)
+      .gte("date", new Date().toISOString().split("T")[0])
       .order("date", { ascending: true });
 
     if (error) {
-      logger.error(`Database query error for ${city}:`, {
-        message: error.message,
-        code: error.code,
-        cityId: numericId,
-      });
-
+      logger.error(`Database query failed for ${city}:`, error);
       return res.status(500).json({
         error: "Database error",
         message: "Failed to fetch events from database",
       });
     }
 
-    logger.info(`Found ${events?.length || 0} events for ${city}`);
-
-    // Check if data needs update via cache control
-    const needsUpdate = await cacheControl.checkNeedsUpdate(
-      numericId.toString()
-    );
-
-    if (needsUpdate) {
-      logger.info(`Cache expired for ${city}, triggering background fetch`);
-
-      // Trigger background fetch using webhook approach for serverless compatibility
+    // If cache is stale, trigger background refresh
+    if (cacheStatus === "stale") {
+      logger.info(`Triggering background refresh for ${city} (${numericId})`);
       setImmediate(() => {
         backgroundJobs
           .triggerBackgroundFetch(numericId, city)
-          .catch((error) => {
-            logger.error(`Background fetch failed for ${city}:`, error);
+          .catch((fetchError) => {
+            logger.error(`Background fetch failed for ${city}:`, fetchError);
           });
       });
     }
 
-    return res.json({
+    const response: ApiResponse<PartnerEvent[]> = {
       source: "database",
       id: numericId,
-      city: city,
-      cacheStatus: needsUpdate ? "updating" : "fresh",
+      city,
+      cacheStatus,
       count: events?.length || 0,
       data: events || [],
-    });
+    };
+
+    return res.json(response);
   } catch (error) {
     logger.error("Events endpoint error:", error);
     return res.status(500).json({
@@ -88,4 +81,4 @@ router.get("/:id/:city", async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

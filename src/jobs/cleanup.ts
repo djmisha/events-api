@@ -1,7 +1,7 @@
-const supabase = require("../services/supabaseClient");
-const logger = require("../services/logger");
+import supabase from "../services/supabaseClient";
+import logger from "../services/logger";
 
-const execute = async () => {
+export const execute = async (): Promise<void> => {
   logger.info("Starting cleanup job - removing past events");
 
   try {
@@ -28,8 +28,4 @@ const execute = async () => {
     logger.error("Cleanup job failed:", error);
     throw error;
   }
-};
-
-module.exports = {
-  execute,
 };
