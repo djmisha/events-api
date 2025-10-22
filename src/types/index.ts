@@ -10,10 +10,10 @@ export interface PartnerEvent {
   };
   location_id: number;
   date: string;
-  starttime?: string;
-  endtime?: string;
-  link?: string;
-  ages?: string;
+  starttime?: string | null;
+  endtime?: string | null;
+  link?: string | null;
+  ages?: string | null;
   festivalind: boolean;
   livestreamind: boolean;
   electronicgenreind: boolean;

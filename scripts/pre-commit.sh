@@ -13,10 +13,18 @@ echo "✅ Prettier passed"
 echo "🔍 Running ESLint on JavaScript files..."
 npx eslint src/ --ext .js
 if [ $? -ne 0 ]; then
-  echo "❌ ESLint failed"
+  echo "❌ ESLint (JS) failed"
   exit 1
 fi
-echo "✅ ESLint passed"
+echo "✅ ESLint (JS) passed"
+
+echo "🔍 Running ESLint on TypeScript files..."
+npx eslint src/ --ext .ts
+if [ $? -ne 0 ]; then
+  echo "❌ ESLint (TS) failed"
+  exit 1
+fi
+echo "✅ ESLint (TS) passed"
 
 echo "🔧 Running TypeScript compiler..."
 npx tsc --noEmit

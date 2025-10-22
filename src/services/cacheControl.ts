@@ -1,6 +1,5 @@
 import supabase from "./supabaseClient";
 import logger from "./logger";
-import { CacheControl } from "../types";
 
 // Cache configuration
 const HOURS = 12;
