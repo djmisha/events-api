@@ -38,9 +38,9 @@ const normalizeEdmTrainEvents = (
         return {
           id: parseInt(event.id, 10) || 0,
           source: "edmtrain",
-          name: event.name || "Untitled Event",
+          name: event.name || "",
           venue: {
-            name: event.venue?.name || "Unknown Venue",
+            name: event.venue?.name || "",
             address: event.venue?.address,
           },
           location_id: cityId,
@@ -56,7 +56,7 @@ const normalizeEdmTrainEvents = (
           artistlist:
             event.artistList?.map((artist: any) => ({
               id: parseInt(artist.id, 10) || 0,
-              name: artist.name || "Unknown Artist",
+              name: artist.name || "",
               link: undefined,
             })) || [],
           createddate: new Date().toISOString(),
@@ -87,9 +87,9 @@ const normalizeTicketmasterEvents = (
         return {
           id: generateNumericIdFromString(event.id, "ticketmaster"),
           source: "ticketmaster",
-          name: event.name || "Untitled Event",
+          name: event.name || "",
           venue: {
-            name: venue?.name || "Unknown Venue",
+            name: venue?.name || "",
             address: venue?.address?.line1,
             city: venue?.city?.name,
             state: venue?.state?.stateCode,
@@ -112,7 +112,7 @@ const normalizeTicketmasterEvents = (
                 Math.floor(Math.random() * 100000),
               10
             ),
-            name: attraction.name || "Unknown Artist",
+            name: attraction.name || "",
             link:
               attraction.url?.replace("sandiegohousemusic", "5926009") ||
               undefined,
