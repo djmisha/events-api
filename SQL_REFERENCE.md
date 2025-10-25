@@ -1,25 +1,23 @@
-# Quick Reference: SQL Commands to Run
+# SQL Reference - Quick Commands
 
-This file provides a quick reference of the SQL commands needed to set up the new normalized schema.
+This file provides SQL commands for setting up and managing the normalized schema.
 
-## Single Command Setup
+## Setup Command
 
-Open Supabase SQL Editor and run the entire file:
+Open Supabase SQL Editor and run:
 ```
-src/database/schema_new.sql
+src/database/schema.sql
 ```
 
 This creates all 4 tables with proper structure.
 
-## What Gets Created
+## Tables Created
 
-### Tables
-
-1. **venues**
+### prtnr_venues
 ```sql
-CREATE TABLE venues (
+CREATE TABLE prtnr_venues (
   id UUID PRIMARY KEY,
-  external_id TEXT,
+  external_id TEXT UNIQUE,
   name TEXT NOT NULL,
   city TEXT,
   state TEXT,
@@ -33,11 +31,11 @@ CREATE TABLE venues (
 );
 ```
 
-2. **artists**
+### prtnr_artists
 ```sql
-CREATE TABLE artists (
+CREATE TABLE prtnr_artists (
   id UUID PRIMARY KEY,
-  external_id TEXT,
+  external_id TEXT UNIQUE,
   name TEXT NOT NULL,
   metadata JSONB,
   created_at TIMESTAMP WITH TIME ZONE,
@@ -45,13 +43,13 @@ CREATE TABLE artists (
 );
 ```
 
-3. **events_v2**
+### prtnr_events
 ```sql
-CREATE TABLE events_v2 (
+CREATE TABLE prtnr_events (
   id BIGINT PRIMARY KEY,
   source TEXT,
   name TEXT,
-  venue_id UUID,  -- FK to venues.id
+  venue_id UUID,  -- FK to prtnr_venues.id
   location_id INTEGER,
   date DATE,
   starttime TIME,
@@ -68,11 +66,11 @@ CREATE TABLE events_v2 (
 );
 ```
 
-4. **event_artists**
+### prtnr_event_artists
 ```sql
-CREATE TABLE event_artists (
-  event_id BIGINT NOT NULL,  -- FK to events_v2.id
-  artist_id UUID NOT NULL,   -- FK to artists.id
+CREATE TABLE prtnr_event_artists (
+  event_id BIGINT NOT NULL,  -- FK to prtnr_events.id
+  artist_id UUID NOT NULL,   -- FK to prtnr_artists.id
   role TEXT,
   display_order INTEGER,
   created_at TIMESTAMP WITH TIME ZONE,
@@ -80,73 +78,14 @@ CREATE TABLE event_artists (
 );
 ```
 
-### Foreign Keys
-
-```sql
--- events_v2.venue_id → venues.id
-ALTER TABLE events_v2 
-  ADD CONSTRAINT fk_events_v2_venue 
-  FOREIGN KEY (venue_id) REFERENCES venues(id);
-
--- event_artists.event_id → events_v2.id
-ALTER TABLE event_artists 
-  ADD CONSTRAINT fk_event_artists_event 
-  FOREIGN KEY (event_id) REFERENCES events_v2(id);
-
--- event_artists.artist_id → artists.id
-ALTER TABLE event_artists 
-  ADD CONSTRAINT fk_event_artists_artist 
-  FOREIGN KEY (artist_id) REFERENCES artists(id);
-```
-
-### Indexes
-
-```sql
--- Unique indexes for upsert operations
-CREATE UNIQUE INDEX idx_venues_external_id ON venues(external_id);
-CREATE UNIQUE INDEX idx_artists_external_id ON artists(external_id);
-
--- Lookup indexes
-CREATE INDEX idx_venues_name_city ON venues(name, city);
-CREATE INDEX idx_artists_name ON artists(name);
-
--- Performance indexes for events_v2
-CREATE INDEX idx_events_v2_location_id ON events_v2(location_id);
-CREATE INDEX idx_events_v2_date ON events_v2(date);
-CREATE INDEX idx_events_v2_location_date ON events_v2(location_id, date);
-CREATE INDEX idx_events_v2_venue_id ON events_v2(venue_id);
-
--- Join index
-CREATE INDEX idx_event_artists_artist_id ON event_artists(artist_id);
-```
-
-### Triggers
-
-```sql
--- Auto-update updated_at columns
-CREATE TRIGGER update_venues_updated_at
-  BEFORE UPDATE ON venues
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_artists_updated_at
-  BEFORE UPDATE ON artists
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_events_v2_updated_at
-  BEFORE UPDATE ON events_v2
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-```
-
 ## Verification Queries
-
-After running the SQL, verify with these queries:
 
 ### Check Tables Exist
 ```sql
 SELECT table_name 
 FROM information_schema.tables 
 WHERE table_schema = 'public' 
-  AND table_name IN ('venues', 'artists', 'events_v2', 'event_artists')
+  AND table_name IN ('prtnr_venues', 'prtnr_artists', 'prtnr_events', 'prtnr_event_artists')
 ORDER BY table_name;
 ```
 
@@ -157,19 +96,16 @@ Expected result: 4 rows
 SELECT
     tc.table_name, 
     tc.constraint_name, 
-    tc.constraint_type,
     kcu.column_name,
     ccu.table_name AS foreign_table_name,
     ccu.column_name AS foreign_column_name 
 FROM information_schema.table_constraints AS tc 
 JOIN information_schema.key_column_usage AS kcu
   ON tc.constraint_name = kcu.constraint_name
-  AND tc.table_schema = kcu.table_schema
 JOIN information_schema.constraint_column_usage AS ccu
   ON ccu.constraint_name = tc.constraint_name
-  AND ccu.table_schema = tc.table_schema
 WHERE tc.constraint_type = 'FOREIGN KEY' 
-  AND tc.table_name IN ('events_v2', 'event_artists')
+  AND tc.table_name IN ('prtnr_events', 'prtnr_event_artists')
 ORDER BY tc.table_name;
 ```
 
@@ -182,69 +118,120 @@ SELECT
     indexname,
     indexdef
 FROM pg_indexes
-WHERE tablename IN ('venues', 'artists', 'events_v2', 'event_artists')
+WHERE tablename IN ('prtnr_venues', 'prtnr_artists', 'prtnr_events', 'prtnr_event_artists')
 ORDER BY tablename, indexname;
 ```
 
 Expected result: 9+ indexes
 
-### Check Triggers
+### Check Data Counts
 ```sql
 SELECT 
-    trigger_name,
-    event_object_table,
-    action_statement
-FROM information_schema.triggers
-WHERE event_object_table IN ('venues', 'artists', 'events_v2')
-ORDER BY event_object_table;
+  'prtnr_venues' as table_name, COUNT(*) as count FROM prtnr_venues
+UNION ALL
+SELECT 'prtnr_artists', COUNT(*) FROM prtnr_artists
+UNION ALL
+SELECT 'prtnr_events', COUNT(*) FROM prtnr_events
+UNION ALL
+SELECT 'prtnr_event_artists', COUNT(*) FROM prtnr_event_artists;
 ```
 
-Expected result: 3 triggers
+## Example Queries
 
-## Troubleshooting
-
-### If tables already exist
+### Get Events with Venues and Artists
 ```sql
--- Drop tables in correct order (if needed)
-DROP TABLE IF EXISTS event_artists CASCADE;
-DROP TABLE IF EXISTS events_v2 CASCADE;
-DROP TABLE IF EXISTS artists CASCADE;
-DROP TABLE IF EXISTS venues CASCADE;
-
--- Then re-run schema_new.sql
+SELECT 
+  e.*,
+  v.name as venue_name,
+  v.city as venue_city,
+  ARRAY_AGG(a.name ORDER BY pea.display_order) as artist_names
+FROM prtnr_events e
+LEFT JOIN prtnr_venues v ON e.venue_id = v.id
+LEFT JOIN prtnr_event_artists pea ON e.id = pea.event_id
+LEFT JOIN prtnr_artists a ON pea.artist_id = a.id
+WHERE e.location_id = 71
+GROUP BY e.id, v.name, v.city
+ORDER BY e.date
+LIMIT 10;
 ```
 
-### If you need to start fresh
+### Get All Events at a Specific Venue
 ```sql
--- This removes all data and tables
-DROP TABLE IF EXISTS event_artists CASCADE;
-DROP TABLE IF EXISTS events_v2 CASCADE;
-DROP TABLE IF EXISTS artists CASCADE;
-DROP TABLE IF EXISTS venues CASCADE;
+SELECT e.* 
+FROM prtnr_events e
+JOIN prtnr_venues v ON e.venue_id = v.id
+WHERE v.name = 'Chicago Theatre'
+ORDER BY e.date;
+```
+
+### Get All Events for a Specific Artist
+```sql
+SELECT e.*
+FROM prtnr_events e
+JOIN prtnr_event_artists pea ON e.id = pea.event_id
+JOIN prtnr_artists a ON pea.artist_id = a.id
+WHERE a.name = 'Artist Name'
+ORDER BY e.date;
+```
+
+### Get Venue Statistics
+```sql
+SELECT 
+  v.name, 
+  v.city, 
+  COUNT(e.id) as event_count
+FROM prtnr_venues v
+LEFT JOIN prtnr_events e ON v.id = e.venue_id
+GROUP BY v.id, v.name, v.city
+ORDER BY event_count DESC
+LIMIT 10;
+```
+
+### Get Popular Artists
+```sql
+SELECT 
+  a.name, 
+  COUNT(pea.event_id) as event_count
+FROM prtnr_artists a
+JOIN prtnr_event_artists pea ON a.id = pea.artist_id
+GROUP BY a.id, a.name
+ORDER BY event_count DESC
+LIMIT 10;
+```
+
+## Cleanup Commands
+
+### Drop All Tables (if needed)
+```sql
+DROP TABLE IF EXISTS prtnr_event_artists CASCADE;
+DROP TABLE IF EXISTS prtnr_events CASCADE;
+DROP TABLE IF EXISTS prtnr_artists CASCADE;
+DROP TABLE IF EXISTS prtnr_venues CASCADE;
 DROP FUNCTION IF EXISTS update_updated_at_column() CASCADE;
-
--- Then re-run schema_new.sql
 ```
 
-## Next Steps
+### Truncate All Tables (keep structure, remove data)
+```sql
+TRUNCATE TABLE prtnr_event_artists CASCADE;
+TRUNCATE TABLE prtnr_events CASCADE;
+TRUNCATE TABLE prtnr_artists CASCADE;
+TRUNCATE TABLE prtnr_venues CASCADE;
+```
 
-1. ✅ Run `schema_new.sql` in Supabase SQL Editor
-2. ✅ Verify tables created with verification queries above
-3. ✅ Start your application: `npm run dev`
-4. ✅ Test API endpoint to confirm data structure
-5. ✅ Monitor logs to ensure data is being inserted correctly
+## Performance Tips
 
-The application will automatically:
-- Fetch events from EDM Train and Ticketmaster
-- Insert venues into `venues` table
-- Insert artists into `artists` table
-- Insert events into `events_v2` table with venue_id
-- Create relationships in `event_artists` table
+1. **Use the composite index** for city queries:
+   - `location_id, date` index optimizes most common queries
+
+2. **External IDs are indexed** for fast upserts:
+   - Use external_id when upserting to avoid duplicates
+
+3. **Foreign keys are indexed** for joins:
+   - Joins between tables are optimized automatically
 
 ## Important Notes
 
 - The existing `partner_events` table is **NOT** modified or dropped
-- Both schemas can coexist
+- Both schemas can coexist indefinitely
 - No data migration or backfill required
 - System starts fresh with new tables
-- Historical data in `partner_events` remains accessible if needed

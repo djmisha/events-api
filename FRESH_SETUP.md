@@ -1,24 +1,24 @@
-# Fresh Setup Guide - New Normalized Schema
+# Fresh Setup Guide - Normalized Events Schema
 
-This guide explains how to set up the new normalized schema from scratch without any migration.
+This guide explains how to set up the normalized event schema from scratch.
 
 ## Overview
 
-The new schema uses completely new table names:
-- `venues` - Stores venue records
-- `artists` - Stores artist records  
-- `events_v2` - Stores event records with proper foreign keys
-- `event_artists` - Join table for event-artist relationships
+The normalized schema uses the `prtnr_` prefix for all tables:
+- `prtnr_venues` - Stores venue records
+- `prtnr_artists` - Stores artist records  
+- `prtnr_events` - Stores event records with proper foreign keys
+- `prtnr_event_artists` - Join table for event-artist relationships
 
 **Important:** The existing `partner_events` table is **not modified** and remains untouched. Both schemas can coexist.
 
 ## Setup Steps
 
-### 1. Create the Tables
+### 1. Create the Database Tables
 
 1. Open your Supabase Dashboard
 2. Navigate to **SQL Editor**
-3. Open the file: `src/database/schema_new.sql`
+3. Open the file: `src/database/schema.sql`
 4. Copy the entire contents
 5. Paste into SQL Editor
 6. Click **Run** to execute
@@ -37,34 +37,32 @@ Run this query in SQL Editor to verify:
 SELECT table_name 
 FROM information_schema.tables 
 WHERE table_schema = 'public' 
-  AND table_name IN ('venues', 'artists', 'events_v2', 'event_artists')
+  AND table_name IN ('prtnr_venues', 'prtnr_artists', 'prtnr_events', 'prtnr_event_artists')
 ORDER BY table_name;
 ```
 
 You should see all 4 tables listed.
 
-### 3. Start Using the New Schema
+### 3. Start Using the Schema
 
-The application code is already configured to use the new tables:
-- `src/services/normalizedData.js` - Uses new table names
-- `src/api/events.js` - Queries from `events_v2` table
+The application code is configured to use these tables:
+- `src/services/normalizedData.js` - Handles all data operations
+- `src/api/events.js` - Queries from `prtnr_events` table
 - `src/jobs/fetchPartnerData.js` - Inserts into new tables
 
-### 4. Test the Setup
-
-Start the development server:
+Simply start the development server:
 ```bash
 npm run dev
 ```
 
 The system will now:
 - Fetch data from EDM Train and Ticketmaster
-- Store venues in `venues` table
-- Store artists in `artists` table
-- Store events in `events_v2` table with proper relationships
-- Create event-artist mappings in `event_artists` table
+- Store venues in `prtnr_venues` table
+- Store artists in `prtnr_artists` table
+- Store events in `prtnr_events` table with proper relationships
+- Create event-artist mappings in `prtnr_event_artists` table
 
-### 5. Query the Data
+### 4. Test the API
 
 Test the API endpoint:
 ```bash
@@ -102,7 +100,7 @@ Expected response with normalized data:
 
 ## Table Schemas
 
-### venues
+### prtnr_venues
 ```sql
 - id (UUID, primary key)
 - external_id (TEXT, unique)
@@ -114,7 +112,7 @@ Expected response with normalized data:
 - created_at, updated_at (TIMESTAMP)
 ```
 
-### artists
+### prtnr_artists
 ```sql
 - id (UUID, primary key)
 - external_id (TEXT, unique)
@@ -123,12 +121,12 @@ Expected response with normalized data:
 - created_at, updated_at (TIMESTAMP)
 ```
 
-### events_v2
+### prtnr_events
 ```sql
 - id (BIGINT, primary key)
 - source (TEXT)
 - name (TEXT)
-- venue_id (UUID, FK to venues)
+- venue_id (UUID, FK to prtnr_venues)
 - location_id (INTEGER)
 - date (DATE)
 - starttime, endtime (TIME)
@@ -137,44 +135,26 @@ Expected response with normalized data:
 - createddate, created_at, updated_at (TIMESTAMP)
 ```
 
-### event_artists
+### prtnr_event_artists
 ```sql
-- event_id (BIGINT, FK to events_v2)
-- artist_id (UUID, FK to artists)
+- event_id (BIGINT, FK to prtnr_events)
+- artist_id (UUID, FK to prtnr_artists)
 - role (TEXT)
 - display_order (INTEGER)
 - created_at (TIMESTAMP)
 - PRIMARY KEY (event_id, artist_id)
 ```
 
-## Benefits of This Approach
+## Performance Features
 
-1. **No Migration Needed** - Fresh start with clean schema
-2. **No Data Loss Risk** - Existing `partner_events` table untouched
-3. **Parallel Operation** - Both systems can run simultaneously
-4. **Clean Architecture** - Proper normalization from day one
-5. **Easy Testing** - Can validate new schema before switching over
+### Indexes
+- Unique indexes on `external_id` fields for fast upserts
+- Composite index on `location_id, date` for common query pattern
+- Foreign key indexes for efficient joins
 
-## Coexistence with Old Schema
-
-The new and old schemas can run side-by-side:
-
-- **Old schema:** `partner_events` (with JSONB venue/artistlist)
-- **New schema:** `events_v2`, `venues`, `artists`, `event_artists`
-
-You can:
-- Keep the old schema as backup
-- Run queries against both for comparison
-- Gradually transition API endpoints
-- Eventually deprecate the old schema when ready
-
-## Next Steps
-
-1. **Create the tables** using `schema_new.sql`
-2. **Start the application** - it will begin populating new tables
-3. **Monitor the data** - check tables are being populated correctly
-4. **Validate responses** - ensure API returns proper nested data
-5. **Optional:** Keep old `partner_events` as historical backup
+### Expected Performance
+- City queries with <1000 events: **<200ms**
+- City queries with 1000-5000 events: **<500ms**
 
 ## Troubleshooting
 
@@ -184,18 +164,24 @@ You can:
 
 ### Foreign key errors
 - Ensure all tables are created successfully
-- Check that `venues` and `artists` tables exist before `events_v2`
+- Check that `prtnr_venues` and `prtnr_artists` tables exist before `prtnr_events`
 
 ### No data appearing
 - Check application logs for errors
 - Verify environment variables are set correctly
 - Ensure API keys for EDM Train and Ticketmaster are valid
 
+## Benefits
+
+✅ **No Migration Required** - Clean start with new tables
+✅ **Zero Risk** - Existing data completely untouched
+✅ **Parallel Operation** - Both old and new schemas coexist
+✅ **Easy Setup** - Just run one SQL file
+✅ **Clean Architecture** - Proper normalization from day one
+
 ## Support
 
 For questions:
-- Check application logs for detailed error messages
-- Verify SQL execution completed without errors
-- Test with a simple location first (e.g., Chicago)
-
-This fresh setup approach avoids all migration complexity and gives you a clean, normalized schema from the start!
+- Check `src/database/README.md` for database details
+- Check `SQL_REFERENCE.md` for SQL commands
+- Review application logs for detailed error messages

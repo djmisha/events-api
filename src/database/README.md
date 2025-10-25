@@ -1,93 +1,57 @@
 # Database Directory
 
-This directory contains database schema and migration files for the Events API.
+This directory contains the database schema for the normalized events structure.
 
-## Current Implementation: Fresh Setup
+## Current Implementation
 
 ### Active File
 
-**`schema_new.sql`** - Creates all new normalized tables from scratch
-- Creates `venues`, `artists`, `events_v2`, `event_artists` tables
+**`schema.sql`** - Creates all normalized tables from scratch
+- Creates `prtnr_venues`, `prtnr_artists`, `prtnr_events`, `prtnr_event_artists` tables
 - No migration or backfill required
 - Existing `partner_events` table untouched
-- **Use this for new installations**
+- **Use this for setup**
 
 ### Usage
 
 ```bash
 # 1. Open Supabase SQL Editor
-# 2. Copy contents of schema_new.sql
+# 2. Copy contents of schema.sql
 # 3. Execute the SQL
 # 4. Done! Start your application
 ```
 
 See `../FRESH_SETUP.md` for detailed setup instructions.
 
-## Reference Files (Migration Approach)
-
-The following files are kept as reference but are **not needed** for the current implementation:
-
-### Migration Files (Reference Only)
-
-- **`migrations/001_create_normalized_tables.sql`** - Original migration approach
-  - Modifies `partner_events` table
-  - Creates `partner_venues`, `partner_artists`, `partner_event_artists`
-  - Requires backfill of existing data
-
-- **`migrations/999_rollback_normalized_schema.sql`** - Rollback script
-  - Reverts migration changes
-  - Drops normalized tables
-
-### Scripts (Reference Only)
-
-- **`backfill.js`** - Migrates existing JSONB data to normalized tables
-  - Not needed for fresh setup
-  - Could be adapted if you need to import old data
-
-- **`migrate.js`** - Migration helper script
-  - Displays migration instructions
-  - Not needed for fresh setup
-
-- **`validate.js`** - Migration validation script
-  - Validates migration success
-  - Not needed for fresh setup
-
-### Documentation
-
-See `../APPROACH_COMPARISON.md` for explanation of:
-- Migration approach (reference only)
-- Fresh setup approach (current implementation)
-- When to use each
-
 ## Table Structure
 
-### New Tables (Created by schema_new.sql)
+### Normalized Tables
 
 ```
-venues
+prtnr_venues
 ├── id (UUID PK)
 ├── external_id (TEXT, unique)
 ├── name (TEXT)
 ├── city, state, country (TEXT)
 └── metadata (JSONB)
 
-artists
+prtnr_artists
 ├── id (UUID PK)
 ├── external_id (TEXT, unique)
 ├── name (TEXT)
 └── metadata (JSONB)
 
-events_v2
+prtnr_events
 ├── id (BIGINT PK)
-├── venue_id (UUID FK → venues.id)
+├── venue_id (UUID FK → prtnr_venues.id)
 ├── source, name (TEXT)
 ├── location_id (INTEGER)
 ├── date (DATE)
 └── [other event fields]
 
-event_artists (join table)
-├── event_id (BIGINT FK → events_v2.id)
-├── artist_id (UUID FK → artists.id)
+prtnr_event_artists (join table)
+├── event_id (BIGINT FK → prtnr_events.id)
+├── artist_id (UUID FK → prtnr_artists.id)
 ├── display_order (INTEGER)
 └── PRIMARY KEY (event_id, artist_id)
 ```
@@ -97,7 +61,7 @@ event_artists (join table)
 ### Create Tables
 ```sql
 -- Run in Supabase SQL Editor
-\i schema_new.sql
+\i schema.sql
 ```
 
 ### Verify Tables
@@ -105,27 +69,27 @@ event_artists (join table)
 SELECT table_name 
 FROM information_schema.tables 
 WHERE table_schema = 'public' 
-  AND table_name IN ('venues', 'artists', 'events_v2', 'event_artists');
+  AND table_name LIKE 'prtnr_%';
 ```
 
 ### Check Data
 ```sql
--- Count records
-SELECT 'venues' as table, COUNT(*) FROM venues
+SELECT 
+  'prtnr_venues' as table, COUNT(*) FROM prtnr_venues
 UNION ALL
-SELECT 'artists', COUNT(*) FROM artists
+SELECT 'prtnr_artists', COUNT(*) FROM prtnr_artists
 UNION ALL
-SELECT 'events_v2', COUNT(*) FROM events_v2
+SELECT 'prtnr_events', COUNT(*) FROM prtnr_events
 UNION ALL
-SELECT 'event_artists', COUNT(*) FROM event_artists;
+SELECT 'prtnr_event_artists', COUNT(*) FROM prtnr_event_artists;
 ```
 
 ### Drop All (if needed)
 ```sql
-DROP TABLE IF EXISTS event_artists CASCADE;
-DROP TABLE IF EXISTS events_v2 CASCADE;
-DROP TABLE IF EXISTS artists CASCADE;
-DROP TABLE IF EXISTS venues CASCADE;
+DROP TABLE IF EXISTS prtnr_event_artists CASCADE;
+DROP TABLE IF EXISTS prtnr_events CASCADE;
+DROP TABLE IF EXISTS prtnr_artists CASCADE;
+DROP TABLE IF EXISTS prtnr_venues CASCADE;
 ```
 
 ## Benefits of Fresh Setup
@@ -140,4 +104,4 @@ DROP TABLE IF EXISTS venues CASCADE;
 
 - See `../FRESH_SETUP.md` for setup guide
 - See `../SQL_REFERENCE.md` for SQL commands
-- See `../APPROACH_COMPARISON.md` for approach details
+- Check application logs for detailed error messages

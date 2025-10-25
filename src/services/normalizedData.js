@@ -2,11 +2,11 @@
  * Normalized Data Service
  * Handles upsert operations for venues, artists, and events with proper relationships
  * 
- * New Schema Tables:
- * - venues (venue records)
- * - artists (artist records)
- * - events_v2 (normalized events)
- * - event_artists (join table)
+ * Schema Tables:
+ * - prtnr_venues (venue records)
+ * - prtnr_artists (artist records)
+ * - prtnr_events (normalized events)
+ * - prtnr_event_artists (join table)
  */
 
 const supabase = require("./supabaseClient");
@@ -50,7 +50,7 @@ async function upsertVenue(venueData, source) {
   try {
     if (externalId) {
       const { data, error } = await supabase
-        .from("venues")
+        .from("prtnr_venues")
         .upsert(venue, {
           onConflict: "external_id",
         })
@@ -62,7 +62,7 @@ async function upsertVenue(venueData, source) {
     } else {
       // Try to find existing venue by name and city
       const { data: existing, error: findError } = await supabase
-        .from("venues")
+        .from("prtnr_venues")
         .select("id")
         .eq("name", venue.name)
         .eq("city", venue.city)
@@ -76,7 +76,7 @@ async function upsertVenue(venueData, source) {
 
       // Insert new venue
       const { data, error } = await supabase
-        .from("venues")
+        .from("prtnr_venues")
         .insert(venue)
         .select("id")
         .single();
@@ -124,7 +124,7 @@ async function upsertArtists(artistList, source) {
     try {
       if (externalId) {
         const { data, error } = await supabase
-          .from("artists")
+          .from("prtnr_artists")
           .upsert(artist, {
             onConflict: "external_id",
           })
@@ -136,7 +136,7 @@ async function upsertArtists(artistList, source) {
       } else {
         // Try to find existing artist by name
         const { data: existing, error: findError } = await supabase
-          .from("artists")
+          .from("prtnr_artists")
           .select("id")
           .eq("name", artist.name)
           .maybeSingle();
@@ -148,7 +148,7 @@ async function upsertArtists(artistList, source) {
         } else {
           // Insert new artist
           const { data, error } = await supabase
-            .from("artists")
+            .from("prtnr_artists")
             .insert(artist)
             .select("id")
             .single();
@@ -187,7 +187,7 @@ async function upsertEventArtists(eventId, artistIds) {
   try {
     // First, delete existing mappings for this event to handle removed artists
     const { error: deleteError } = await supabase
-      .from("event_artists")
+      .from("prtnr_event_artists")
       .delete()
       .eq("event_id", eventId);
 
@@ -197,7 +197,7 @@ async function upsertEventArtists(eventId, artistIds) {
 
     // Insert new mappings
     const { error } = await supabase
-      .from("event_artists")
+      .from("prtnr_event_artists")
       .insert(mappings);
 
     if (error) {
@@ -250,7 +250,7 @@ async function upsertEventsWithRelations(events, source) {
 
       // 4. Upsert event
       const { error: eventError } = await supabase
-        .from("events_v2")
+        .from("prtnr_events")
         .upsert(eventData, {
           onConflict: "id",
         });
@@ -283,7 +283,7 @@ async function getEventsWithRelations(locationId) {
   try {
     // Fetch events with venue data
     const { data: events, error: eventsError } = await supabase
-      .from("events_v2")
+      .from("prtnr_events")
       .select(`
         *,
         venue:venues(*)
@@ -302,7 +302,7 @@ async function getEventsWithRelations(locationId) {
     // Fetch artist mappings for all events
     const eventIds = events.map(e => e.id);
     const { data: artistMappings, error: mappingsError } = await supabase
-      .from("event_artists")
+      .from("prtnr_event_artists")
       .select(`
         event_id,
         display_order,

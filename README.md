@@ -44,22 +44,24 @@ This system provides an Express.js API to serve event data stored in a Supabase 
 
 ### Database Setup
 
-The system uses a normalized relational schema for venues, artists, and events in **new tables** that don't interfere with existing data.
+The system uses a normalized relational schema with the `prtnr_` prefix for all tables.
 
 #### Setup for New Installations
 
 Run the schema creation SQL file in your Supabase SQL Editor:
-- File: `src/database/schema_new.sql`
-- This creates: `venues`, `artists`, `events_v2`, and `event_artists` tables
+- File: `src/database/schema.sql`
+- This creates: `prtnr_venues`, `prtnr_artists`, `prtnr_events`, and `prtnr_event_artists` tables
 - Also creates `cache_control` table if it doesn't exist
 
 **New Tables Created:**
-- `venues` - Venue records with UUID primary keys
-- `artists` - Artist records with UUID primary keys
-- `events_v2` - Normalized event records with foreign keys
-- `event_artists` - Many-to-many join table for event-artist relationships
+- `prtnr_venues` - Venue records with UUID primary keys
+- `prtnr_artists` - Artist records with UUID primary keys
+- `prtnr_events` - Normalized event records with foreign keys
+- `prtnr_event_artists` - Many-to-many join table for event-artist relationships
 
 The existing `partner_events` table is left untouched and can coexist with the new schema.
+
+See `FRESH_SETUP.md` for detailed setup instructions.
 
 ### Installation
 

@@ -1,13 +1,13 @@
--- New Schema: Fresh normalized tables (no migration needed)
+-- Fresh Normalized Schema for Events API
 -- Date: 2025-10-25
--- Description: Creates all new tables with normalized structure from scratch
---              New table names: events_v2, venues, artists, event_artists
+-- Description: Creates normalized tables with prtnr_ prefix from scratch
+--              Tables: prtnr_events, prtnr_venues, prtnr_artists, prtnr_event_artists
 --              Existing partner_events table remains untouched
 
 -- ============================================================================
--- 1. Create venues table
+-- 1. Create prtnr_venues table
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS venues (
+CREATE TABLE IF NOT EXISTS prtnr_venues (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   external_id TEXT,
   name TEXT NOT NULL,
@@ -23,18 +23,18 @@ CREATE TABLE IF NOT EXISTS venues (
 );
 
 -- Create unique index on external_id for upsert operations
-CREATE UNIQUE INDEX IF NOT EXISTS idx_venues_external_id 
-  ON venues(external_id) 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_prtnr_venues_external_id 
+  ON prtnr_venues(external_id) 
   WHERE external_id IS NOT NULL;
 
 -- Create index on name and city for lookups
-CREATE INDEX IF NOT EXISTS idx_venues_name_city 
-  ON venues(name, city);
+CREATE INDEX IF NOT EXISTS idx_prtnr_venues_name_city 
+  ON prtnr_venues(name, city);
 
 -- ============================================================================
--- 2. Create artists table
+-- 2. Create prtnr_artists table
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS artists (
+CREATE TABLE IF NOT EXISTS prtnr_artists (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   external_id TEXT,
   name TEXT NOT NULL,
@@ -44,18 +44,18 @@ CREATE TABLE IF NOT EXISTS artists (
 );
 
 -- Create unique index on external_id for upsert operations
-CREATE UNIQUE INDEX IF NOT EXISTS idx_artists_external_id 
-  ON artists(external_id) 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_prtnr_artists_external_id 
+  ON prtnr_artists(external_id) 
   WHERE external_id IS NOT NULL;
 
 -- Create index on name for lookups
-CREATE INDEX IF NOT EXISTS idx_artists_name 
-  ON artists(name);
+CREATE INDEX IF NOT EXISTS idx_prtnr_artists_name 
+  ON prtnr_artists(name);
 
 -- ============================================================================
--- 3. Create events_v2 table (new normalized events table)
+-- 3. Create prtnr_events table (new normalized events table)
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS events_v2 (
+CREATE TABLE IF NOT EXISTS prtnr_events (
   id BIGINT PRIMARY KEY,
   source TEXT,
   name TEXT,
@@ -76,18 +76,18 @@ CREATE TABLE IF NOT EXISTS events_v2 (
 );
 
 -- Add foreign key constraint for venue_id
-ALTER TABLE events_v2 
-  DROP CONSTRAINT IF EXISTS fk_events_v2_venue;
-ALTER TABLE events_v2 
-  ADD CONSTRAINT fk_events_v2_venue 
+ALTER TABLE prtnr_events 
+  DROP CONSTRAINT IF EXISTS fk_prtnr_events_venue;
+ALTER TABLE prtnr_events 
+  ADD CONSTRAINT fk_prtnr_events_venue 
   FOREIGN KEY (venue_id) 
-  REFERENCES venues(id) 
+  REFERENCES prtnr_venues(id) 
   ON DELETE SET NULL;
 
 -- ============================================================================
--- 4. Create event_artists join table
+-- 4. Create prtnr_event_artists join table
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS event_artists (
+CREATE TABLE IF NOT EXISTS prtnr_event_artists (
   event_id BIGINT NOT NULL,
   artist_id UUID NOT NULL,
   role TEXT,
@@ -97,44 +97,44 @@ CREATE TABLE IF NOT EXISTS event_artists (
 );
 
 -- Add foreign key constraints
-ALTER TABLE event_artists 
-  DROP CONSTRAINT IF EXISTS fk_event_artists_event;
-ALTER TABLE event_artists 
-  ADD CONSTRAINT fk_event_artists_event 
+ALTER TABLE prtnr_event_artists 
+  DROP CONSTRAINT IF EXISTS fk_prtnr_event_artists_event;
+ALTER TABLE prtnr_event_artists 
+  ADD CONSTRAINT fk_prtnr_event_artists_event 
   FOREIGN KEY (event_id) 
-  REFERENCES events_v2(id) 
+  REFERENCES prtnr_events(id) 
   ON DELETE CASCADE;
 
-ALTER TABLE event_artists 
-  DROP CONSTRAINT IF EXISTS fk_event_artists_artist;
-ALTER TABLE event_artists 
-  ADD CONSTRAINT fk_event_artists_artist 
+ALTER TABLE prtnr_event_artists 
+  DROP CONSTRAINT IF EXISTS fk_prtnr_event_artists_artist;
+ALTER TABLE prtnr_event_artists 
+  ADD CONSTRAINT fk_prtnr_event_artists_artist 
   FOREIGN KEY (artist_id) 
-  REFERENCES artists(id) 
+  REFERENCES prtnr_artists(id) 
   ON DELETE CASCADE;
 
 -- Create index on artist_id for reverse lookups
-CREATE INDEX IF NOT EXISTS idx_event_artists_artist_id 
-  ON event_artists(artist_id);
+CREATE INDEX IF NOT EXISTS idx_prtnr_event_artists_artist_id 
+  ON prtnr_event_artists(artist_id);
 
 -- ============================================================================
--- 5. Add performance indexes on events_v2
+-- 5. Add performance indexes on prtnr_events
 -- ============================================================================
 -- Index for city queries (commonly used in GET events by city)
-CREATE INDEX IF NOT EXISTS idx_events_v2_location_id 
-  ON events_v2(location_id);
+CREATE INDEX IF NOT EXISTS idx_prtnr_events_location_id 
+  ON prtnr_events(location_id);
 
 -- Index for date queries
-CREATE INDEX IF NOT EXISTS idx_events_v2_date 
-  ON events_v2(date);
+CREATE INDEX IF NOT EXISTS idx_prtnr_events_date 
+  ON prtnr_events(date);
 
 -- Composite index for city + date queries (most common query pattern)
-CREATE INDEX IF NOT EXISTS idx_events_v2_location_date 
-  ON events_v2(location_id, date);
+CREATE INDEX IF NOT EXISTS idx_prtnr_events_location_date 
+  ON prtnr_events(location_id, date);
 
 -- Index on venue_id for joins
-CREATE INDEX IF NOT EXISTS idx_events_v2_venue_id 
-  ON events_v2(venue_id);
+CREATE INDEX IF NOT EXISTS idx_prtnr_events_venue_id 
+  ON prtnr_events(venue_id);
 
 -- ============================================================================
 -- 6. Create updated_at trigger function for timestamp management
@@ -148,32 +148,32 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Add triggers to automatically update updated_at columns
-DROP TRIGGER IF EXISTS update_venues_updated_at ON venues;
-CREATE TRIGGER update_venues_updated_at
-  BEFORE UPDATE ON venues
+DROP TRIGGER IF EXISTS update_prtnr_venues_updated_at ON prtnr_venues;
+CREATE TRIGGER update_prtnr_venues_updated_at
+  BEFORE UPDATE ON prtnr_venues
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
-DROP TRIGGER IF EXISTS update_artists_updated_at ON artists;
-CREATE TRIGGER update_artists_updated_at
-  BEFORE UPDATE ON artists
+DROP TRIGGER IF EXISTS update_prtnr_artists_updated_at ON prtnr_artists;
+CREATE TRIGGER update_prtnr_artists_updated_at
+  BEFORE UPDATE ON prtnr_artists
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
-DROP TRIGGER IF EXISTS update_events_v2_updated_at ON events_v2;
-CREATE TRIGGER update_events_v2_updated_at
-  BEFORE UPDATE ON events_v2
+DROP TRIGGER IF EXISTS update_prtnr_events_updated_at ON prtnr_events;
+CREATE TRIGGER update_prtnr_events_updated_at
+  BEFORE UPDATE ON prtnr_events
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================================
 -- Schema creation complete
 -- ============================================================================
--- Note: This creates entirely new tables. The existing partner_events table
--- is left untouched. You can run both systems in parallel if needed.
+-- New Tables Created:
+-- - prtnr_venues (venue records with UUID primary keys)
+-- - prtnr_artists (artist records with UUID primary keys)
+-- - prtnr_events (normalized event records with foreign key relationships)
+-- - prtnr_event_artists (join table for many-to-many event-artist relationships)
 --
--- New Tables:
--- - venues (replaces partner_venues concept)
--- - artists (replaces partner_artists concept)
--- - events_v2 (new normalized events table)
--- - event_artists (join table for many-to-many relationships)
+-- The existing partner_events table is left untouched.
+-- Both schemas can coexist if needed.
