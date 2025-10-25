@@ -44,25 +44,22 @@ This system provides an Express.js API to serve event data stored in a Supabase 
 
 ### Database Setup
 
-The system uses a normalized relational schema for venues, artists, and events.
+The system uses a normalized relational schema for venues, artists, and events in **new tables** that don't interfere with existing data.
 
-#### Initial Setup (for new installations)
+#### Setup for New Installations
 
-Run the migration SQL file in your Supabase SQL Editor:
-- File: `src/database/migrations/001_create_normalized_tables.sql`
-- This creates: `partner_events`, `partner_venues`, `partner_artists`, `partner_event_artists`, and `cache_control` tables
+Run the schema creation SQL file in your Supabase SQL Editor:
+- File: `src/database/schema_new.sql`
+- This creates: `venues`, `artists`, `events_v2`, and `event_artists` tables
+- Also creates `cache_control` table if it doesn't exist
 
-#### Migration (for existing installations)
+**New Tables Created:**
+- `venues` - Venue records with UUID primary keys
+- `artists` - Artist records with UUID primary keys
+- `events_v2` - Normalized event records with foreign keys
+- `event_artists` - Many-to-many join table for event-artist relationships
 
-If you have an existing database with JSONB venue/artist data:
-
-1. **Backup your database** in Supabase dashboard
-2. Run migration: `npm run migrate` (displays instructions)
-3. Execute migration SQL in Supabase SQL Editor
-4. Run backfill: `npm run backfill`
-5. Validate migration: Follow steps in `MIGRATION_GUIDE.md`
-
-See the comprehensive [Migration Guide](./MIGRATION_GUIDE.md) for detailed steps.
+The existing `partner_events` table is left untouched and can coexist with the new schema.
 
 ### Installation
 

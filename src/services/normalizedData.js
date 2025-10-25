@@ -1,6 +1,12 @@
 /**
  * Normalized Data Service
  * Handles upsert operations for venues, artists, and events with proper relationships
+ * 
+ * New Schema Tables:
+ * - venues (venue records)
+ * - artists (artist records)
+ * - events_v2 (normalized events)
+ * - event_artists (join table)
  */
 
 const supabase = require("./supabaseClient");
@@ -44,7 +50,7 @@ async function upsertVenue(venueData, source) {
   try {
     if (externalId) {
       const { data, error } = await supabase
-        .from("partner_venues")
+        .from("venues")
         .upsert(venue, {
           onConflict: "external_id",
         })
@@ -56,7 +62,7 @@ async function upsertVenue(venueData, source) {
     } else {
       // Try to find existing venue by name and city
       const { data: existing, error: findError } = await supabase
-        .from("partner_venues")
+        .from("venues")
         .select("id")
         .eq("name", venue.name)
         .eq("city", venue.city)
@@ -70,7 +76,7 @@ async function upsertVenue(venueData, source) {
 
       // Insert new venue
       const { data, error } = await supabase
-        .from("partner_venues")
+        .from("venues")
         .insert(venue)
         .select("id")
         .single();
@@ -118,7 +124,7 @@ async function upsertArtists(artistList, source) {
     try {
       if (externalId) {
         const { data, error } = await supabase
-          .from("partner_artists")
+          .from("artists")
           .upsert(artist, {
             onConflict: "external_id",
           })
@@ -130,7 +136,7 @@ async function upsertArtists(artistList, source) {
       } else {
         // Try to find existing artist by name
         const { data: existing, error: findError } = await supabase
-          .from("partner_artists")
+          .from("artists")
           .select("id")
           .eq("name", artist.name)
           .maybeSingle();
@@ -142,7 +148,7 @@ async function upsertArtists(artistList, source) {
         } else {
           // Insert new artist
           const { data, error } = await supabase
-            .from("partner_artists")
+            .from("artists")
             .insert(artist)
             .select("id")
             .single();
@@ -181,7 +187,7 @@ async function upsertEventArtists(eventId, artistIds) {
   try {
     // First, delete existing mappings for this event to handle removed artists
     const { error: deleteError } = await supabase
-      .from("partner_event_artists")
+      .from("event_artists")
       .delete()
       .eq("event_id", eventId);
 
@@ -191,7 +197,7 @@ async function upsertEventArtists(eventId, artistIds) {
 
     // Insert new mappings
     const { error } = await supabase
-      .from("partner_event_artists")
+      .from("event_artists")
       .insert(mappings);
 
     if (error) {
@@ -240,14 +246,11 @@ async function upsertEventsWithRelations(events, source) {
         createddate: event.createddate,
         location_id: event.location_id,
         venue_id: venueId,
-        // Keep legacy JSON columns for now
-        venue: event.venue,
-        artistlist: event.artistlist,
       };
 
       // 4. Upsert event
       const { error: eventError } = await supabase
-        .from("partner_events")
+        .from("events_v2")
         .upsert(eventData, {
           onConflict: "id",
         });
@@ -280,10 +283,10 @@ async function getEventsWithRelations(locationId) {
   try {
     // Fetch events with venue data
     const { data: events, error: eventsError } = await supabase
-      .from("partner_events")
+      .from("events_v2")
       .select(`
         *,
-        venue:partner_venues(*)
+        venue:venues(*)
       `)
       .eq("location_id", locationId)
       .order("date", { ascending: true });
@@ -299,11 +302,11 @@ async function getEventsWithRelations(locationId) {
     // Fetch artist mappings for all events
     const eventIds = events.map(e => e.id);
     const { data: artistMappings, error: mappingsError } = await supabase
-      .from("partner_event_artists")
+      .from("event_artists")
       .select(`
         event_id,
         display_order,
-        artist:partner_artists(*)
+        artist:artists(*)
       `)
       .in("event_id", eventIds)
       .order("display_order", { ascending: true });
