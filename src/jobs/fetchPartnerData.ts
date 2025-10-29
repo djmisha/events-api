@@ -118,9 +118,9 @@ const assignGenresToEvents = async (
 };
 
 /**
- * Assign genres to EDM Train events
+ * Assign genres to EDM Train events based on electronicgenreind flag from EDM Train API
  * - If electronicgenreind is true: assign "Dance/Electronic" genre
- * - If electronicgenreind is false (edge case): assign "Alternative" or "Pop" genre
+ * - If electronicgenreind is false: assign "Pop" genre
  */
 /* eslint-disable no-restricted-syntax, no-continue */
 const assignGenresToEdmTrainEvents = async (
@@ -134,23 +134,16 @@ const assignGenresToEdmTrainEvents = async (
       .eq("normalized_name", "dance-electronic")
       .maybeSingle();
 
-    // Find Alternative genre for non-electronic events
-    const { data: alternativeGenre } = await supabase
-      .from("prtnr_genres")
-      .select("id")
-      .eq("normalized_name", "alternative")
-      .maybeSingle();
-
-    // Find Pop genre as fallback
+    // Find Pop genre for non-electronic events
     const { data: popGenre } = await supabase
       .from("prtnr_genres")
       .select("id")
       .eq("normalized_name", "pop")
       .maybeSingle();
 
-    if (!electronicGenre) {
+    if (!electronicGenre || !popGenre) {
       logger.warn(
-        "Dance/Electronic genre not found. Run 'npm run genres:bootstrap' to import genres."
+        "Required genres not found. Run 'npm run genres:bootstrap' to import genres."
       );
       return;
     }
@@ -160,30 +153,16 @@ const assignGenresToEdmTrainEvents = async (
 
     for (const event of events) {
       try {
-        // Determine which genre to assign based on electronicgenreind flag
-        let genreId: string | null = null;
+        // Use the electronicgenreind flag from EDM Train API to determine genre
+        const genreId = event.electronicgenreind
+          ? electronicGenre.id // Electronic music → Dance/Electronic
+          : popGenre.id; // Non-electronic music → Pop
 
-        if (event.electronicgenreind) {
-          // Electronic music event - assign Dance/Electronic genre
-          genreId = electronicGenre.id;
-        } else {
-          // Non-electronic event (edge case)
-          // Recommendation: Use "Alternative" if available, otherwise "Pop"
-          genreId = alternativeGenre?.id || popGenre?.id || null;
-
-          if (genreId) {
-            logger.info(
-              `EDM Train event "${event.name}" (ID: ${event.id}) is flagged as non-electronic, assigning ${alternativeGenre ? "Alternative" : "Pop"} genre`
-            );
-          }
-        }
-
-        if (!genreId) {
-          logger.warn(
-            `No suitable genre found for EDM Train event "${event.name}" (ID: ${event.id})`
+        // Log non-electronic events for visibility
+        if (!event.electronicgenreind) {
+          logger.info(
+            `EDM Train event "${event.name}" (ID: ${event.id}) is flagged as non-electronic, assigning Pop genre`
           );
-          skippedCount += 1;
-          continue;
         }
 
         // Assign genre to event

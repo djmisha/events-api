@@ -542,7 +542,7 @@ All EDM Train events are **automatically assigned genres** when they are fetched
 
 1. **Automatic Assignment**: When the webhook fetches EDM Train data, genres are automatically assigned during the data processing
 2. **Dance/Electronic Genre**: Most EDM Train events receive the "Dance/Electronic" genre
-3. **Edge Case Handling**: Events flagged as non-electronic (rare) receive "Alternative" or "Pop" genre
+3. **Edge Case Handling**: Events flagged as non-electronic (rare) receive "Pop" genre
 
 ### Genre Assignment Rules
 
@@ -552,9 +552,9 @@ All EDM Train events are **automatically assigned genres** when they are fetched
 - Assigned automatically in `fetchPartnerData` job
 
 **For Non-Electronic Events** (`electronicgenreind: false` - edge case):
-- Primary: **Alternative** genre (if available)
-- Fallback: **Pop** genre (if Alternative not available)
+- Genre: **Pop**
 - These are rare exceptions in the EDM Train catalog
+- Logged for visibility
 
 ### Code Implementation
 
@@ -563,26 +563,30 @@ The genre assignment happens in `src/jobs/fetchPartnerData.ts`:
 ```typescript
 // After inserting EDM Train events, genres are automatically assigned
 const assignGenresToEdmTrainEvents = async (events) => {
-  // Find Dance/Electronic genre
+  // Find Dance/Electronic and Pop genres
   const electronicGenre = await supabase
     .from("prtnr_genres")
     .select("id")
     .eq("normalized_name", "dance-electronic")
     .maybeSingle();
 
-  // For each event
+  const popGenre = await supabase
+    .from("prtnr_genres")
+    .select("id")
+    .eq("normalized_name", "pop")
+    .maybeSingle();
+
+  // For each event, use the electronicgenreind flag from EDM Train API
   for (const event of events) {
-    if (event.electronicgenreind) {
-      // Assign Dance/Electronic genre
-      await supabase.from("prtnr_event_genres").upsert({
-        event_id: event.id,
-        genre_id: electronicGenre.id,
-        classification_primary: true,
-      });
-    } else {
-      // Edge case: assign Alternative or Pop
-      // (See full implementation in code)
-    }
+    const genreId = event.electronicgenreind
+      ? electronicGenre.id  // Electronic → Dance/Electronic
+      : popGenre.id;        // Non-electronic → Pop
+
+    await supabase.from("prtnr_event_genres").upsert({
+      event_id: event.id,
+      genre_id: genreId,
+      classification_primary: true,
+    });
   }
 };
 ```
@@ -630,22 +634,19 @@ WHERE e.source = 'edmtrain' AND eg.event_id IS NULL;
 
 ### Edge Case: Non-Electronic Events
 
-**Recommendation for `electronicgenreind: false` events:**
+**Assignment for `electronicgenreind: false` events:**
 
-The implementation assigns these events to:
-1. **First choice**: "Alternative" genre
-2. **Fallback**: "Pop" genre
+The implementation assigns these events to **"Pop"** genre.
 
 **Rationale:**
 - EDM Train occasionally lists non-electronic events (DJ events, concerts, etc.)
-- "Alternative" is a broad category that covers diverse music styles
-- "Pop" serves as a universal fallback
+- "Pop" serves as a universal genre for diverse music styles
 - These edge cases are rare (<5% of EDM Train events)
 
 **Logging:**
 Non-electronic events are logged for review:
 ```
-[INFO] EDM Train event "John Doe Live" (ID: 12345) is flagged as non-electronic, assigning Alternative genre
+[INFO] EDM Train event "John Doe Live" (ID: 12345) is flagged as non-electronic, assigning Pop genre
 ```
 
 ### Troubleshooting
@@ -688,7 +689,7 @@ WHERE source = 'edmtrain' AND id = YOUR_EVENT_ID;
 |--------|-----------|--------------|
 | **Assignment Method** | Automatic via webhook | Manual backfill + classifications |
 | **Primary Genre** | Dance/Electronic | Various (from API) |
-| **Edge Cases** | Alternative/Pop (rare) | Multiple genres supported |
+| **Edge Cases** | Pop (rare, for non-electronic) | Multiple genres supported |
 | **Migration Required** | ❌ No | ✅ Yes (backfill) |
 | **Update Frequency** | Every webhook run | On backfill or new events |
 | **Coverage** | 100% automatic | 80-95% (depends on API data) |
