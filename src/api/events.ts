@@ -70,10 +70,10 @@ router.get("/:id/:city", async (req: Request, res: Response) => {
     };
 
     return res.json(response);
-  } catch (error: any) {
+  } catch (error) {
     logger.error({
       msg: "Events endpoint error",
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
     });
     return res.status(500).json({
       error: "Internal server error",
