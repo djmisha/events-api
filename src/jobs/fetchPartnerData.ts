@@ -22,7 +22,7 @@ export const execute = async (
     await processSourceUpdate(results[0], "edmtrain", cityId, cityName);
     await processSourceUpdate(results[1], "ticketmaster", cityId, cityName);
 
-    await cacheControl.updateCacheTimestamp(cityId.toString());
+    await cacheControl.updateCacheTimestamp(cityId);
     logger.info(`Completed data fetch for ${cityName} (ID: ${cityId})`);
   } catch (error) {
     logger.error(`Data fetch failed for ${cityName} (ID: ${cityId}):`, error);

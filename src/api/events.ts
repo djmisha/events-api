@@ -29,7 +29,7 @@ router.get("/:id/:city", async (req: Request, res: Response) => {
     }
 
     // Check cache status
-    const cacheStatus = await cacheControl.getCacheStatus(numericId.toString());
+    const cacheStatus = await cacheControl.getCacheStatus(numericId);
     logger.info(`Cache status for ${city} (${numericId}): ${cacheStatus}`);
 
     // Always fetch current data from database first
