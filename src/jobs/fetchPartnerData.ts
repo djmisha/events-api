@@ -96,4 +96,150 @@ const processSourceUpdate = async (
   logger.info(
     `Successfully updated ${successCount} ${source} events for ${cityName} (ID: ${cityId})`
   );
+
+  // Assign genres to events
+  await assignGenresToEvents(transformedEvents, source);
+};
+
+/**
+ * Assign genres to events based on source and event properties
+ */
+const assignGenresToEvents = async (
+  events: PartnerEvent[],
+  source: "edmtrain" | "ticketmaster"
+): Promise<void> => {
+  if (source === "edmtrain") {
+    // For EDM Train events, assign genre based on electronicgenreind flag
+    await assignGenresToEdmTrainEvents(events);
+  } else if (source === "ticketmaster") {
+    // For Ticketmaster events, use classifications from API
+    await assignGenresToTicketmasterEvents();
+  }
+};
+
+/**
+ * Assign genres to EDM Train events
+ * - If electronicgenreind is true: assign "Dance/Electronic" genre
+ * - If electronicgenreind is false (edge case): assign "Alternative" or "Pop" genre
+ */
+/* eslint-disable no-restricted-syntax, no-continue */
+const assignGenresToEdmTrainEvents = async (
+  events: PartnerEvent[]
+): Promise<void> => {
+  try {
+    // Find the Dance/Electronic genre by normalized name
+    const { data: electronicGenre } = await supabase
+      .from("prtnr_genres")
+      .select("id")
+      .eq("normalized_name", "dance-electronic")
+      .maybeSingle();
+
+    // Find Alternative genre for non-electronic events
+    const { data: alternativeGenre } = await supabase
+      .from("prtnr_genres")
+      .select("id")
+      .eq("normalized_name", "alternative")
+      .maybeSingle();
+
+    // Find Pop genre as fallback
+    const { data: popGenre } = await supabase
+      .from("prtnr_genres")
+      .select("id")
+      .eq("normalized_name", "pop")
+      .maybeSingle();
+
+    if (!electronicGenre) {
+      logger.warn(
+        "Dance/Electronic genre not found. Run 'npm run genres:bootstrap' to import genres."
+      );
+      return;
+    }
+
+    let assignedCount = 0;
+    let skippedCount = 0;
+
+    for (const event of events) {
+      try {
+        // Determine which genre to assign based on electronicgenreind flag
+        let genreId: string | null = null;
+
+        if (event.electronicgenreind) {
+          // Electronic music event - assign Dance/Electronic genre
+          genreId = electronicGenre.id;
+        } else {
+          // Non-electronic event (edge case)
+          // Recommendation: Use "Alternative" if available, otherwise "Pop"
+          genreId = alternativeGenre?.id || popGenre?.id || null;
+
+          if (genreId) {
+            logger.info(
+              `EDM Train event "${event.name}" (ID: ${event.id}) is flagged as non-electronic, assigning ${alternativeGenre ? "Alternative" : "Pop"} genre`
+            );
+          }
+        }
+
+        if (!genreId) {
+          logger.warn(
+            `No suitable genre found for EDM Train event "${event.name}" (ID: ${event.id})`
+          );
+          skippedCount += 1;
+          continue;
+        }
+
+        // Assign genre to event
+        const { error: assignError } = await supabase
+          .from("prtnr_event_genres")
+          .upsert(
+            {
+              event_id: event.id,
+              genre_id: genreId,
+              classification_primary: true,
+              ticketmaster_classification_json: {
+                source: "edmtrain",
+                auto_assigned: true,
+                electronicgenreind: event.electronicgenreind,
+              },
+            },
+            {
+              onConflict: "event_id,genre_id",
+            }
+          );
+
+        if (assignError) {
+          logger.error(
+            `Failed to assign genre to EDM Train event ${event.id}:`,
+            assignError
+          );
+          skippedCount += 1;
+        } else {
+          assignedCount += 1;
+        }
+      } catch (err) {
+        logger.error(
+          `Error assigning genre to EDM Train event ${event.id}:`,
+          err
+        );
+        skippedCount += 1;
+      }
+    }
+
+    logger.info(
+      `EDM Train genre assignment complete: ${assignedCount} assigned, ${skippedCount} skipped`
+    );
+  } catch (error) {
+    logger.error("Failed to assign genres to EDM Train events:", error);
+  }
+};
+/* eslint-enable no-restricted-syntax, no-continue */
+
+/**
+ * Assign genres to Ticketmaster events using their classification data
+ */
+const assignGenresToTicketmasterEvents = async (): Promise<void> => {
+  // This would need the full event data with classifications
+  // For now, we'll skip this as it requires fetching the full event data
+  // The backfill job can handle this for existing events
+  logger.info(
+    "Ticketmaster events will get genres assigned during backfill or via classifications"
+  );
 };

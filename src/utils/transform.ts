@@ -35,6 +35,9 @@ const normalizeEdmTrainEvents = (
   return events
     .map((event): PartnerEvent | null => {
       try {
+        // Check if event is electronic music (default to true if not specified)
+        const isElectronic = event.electronicgenreind !== false;
+
         return {
           id: parseInt(event.id, 10) || 0,
           source: "edmtrain",
@@ -51,8 +54,8 @@ const normalizeEdmTrainEvents = (
           ages: event.ages || null,
           festivalind: false,
           livestreamind: false,
-          electronicgenreind: true,
-          othergenreind: false,
+          electronicgenreind: isElectronic,
+          othergenreind: !isElectronic,
           artistlist:
             event.artistList?.map((artist: any) => ({
               id: parseInt(artist.id, 10) || 0,
