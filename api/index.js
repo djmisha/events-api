@@ -1,4 +1,3 @@
-// Import the Express app from src/server.js and export it for Vercel
-const app = require("../src/server");
-module.exports = app;
+// Import the compiled Express app from dist/server.js for Vercel
+const app = require("../dist/server");
 module.exports = app;

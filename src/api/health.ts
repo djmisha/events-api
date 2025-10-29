@@ -1,11 +1,21 @@
-const express = require("express");
-const supabase = require("../services/supabaseClient");
-const logger = require("../services/logger");
+import express, { Request, Response } from "express";
+import supabase from "../services/supabaseClient";
+import logger from "../services/logger";
 
 const router = express.Router();
 
-router.get("/", async (req, res) => {
-  const healthCheck = {
+interface HealthCheck {
+  status: "OK" | "DEGRADED" | "ERROR";
+  timestamp: string;
+  uptime: number;
+  environment: string;
+  services: {
+    database?: "OK" | "ERROR";
+  };
+}
+
+router.get("/", async (req: Request, res: Response) => {
+  const healthCheck: HealthCheck = {
     status: "OK",
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
@@ -34,4 +44,4 @@ router.get("/", async (req, res) => {
   res.status(statusCode).json(healthCheck);
 });
 
-module.exports = router;
+export default router;

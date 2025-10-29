@@ -1,6 +1,6 @@
-const express = require("express");
-const fetchPartnerData = require("../jobs/fetchPartnerData");
-const logger = require("../services/logger");
+import express, { Request, Response } from "express";
+import { execute as fetchPartnerData } from "../jobs/fetchPartnerData";
+import logger from "../services/logger";
 
 const router = express.Router();
 
@@ -8,7 +8,7 @@ const router = express.Router();
  * Webhook endpoint for background data fetching
  * Used in serverless environments to handle async processing
  */
-router.post("/fetch-partner-data", async (req, res) => {
+router.post("/fetch-partner-data", async (req: Request, res: Response) => {
   try {
     // Basic authentication check
     const authHeader = req.headers.authorization;
@@ -39,7 +39,7 @@ router.post("/fetch-partner-data", async (req, res) => {
     }
 
     const numericCityId = parseInt(cityId, 10);
-    if (isNaN(numericCityId)) {
+    if (Number.isNaN(numericCityId)) {
       logger.error("Invalid cityId in webhook", { cityId, cityName });
       return res.status(400).json({
         error: "Invalid cityId",
@@ -54,10 +54,10 @@ router.post("/fetch-partner-data", async (req, res) => {
 
     // Execute the background fetch
     const startTime = Date.now();
-    await fetchPartnerData.execute(numericCityId, cityName);
+    await fetchPartnerData(numericCityId, cityName);
     const duration = Date.now() - startTime;
 
-    logger.info(`Webhook fetch completed successfully`, {
+    logger.info("Webhook fetch completed successfully", {
       cityId: numericCityId,
       cityName,
       duration: `${duration}ms`,
@@ -73,15 +73,15 @@ router.post("/fetch-partner-data", async (req, res) => {
     });
   } catch (error) {
     logger.error("Webhook fetch-partner-data error:", {
-      error: error.message,
-      stack: error.stack,
+      error: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : undefined,
       body: req.body,
     });
 
     res.status(500).json({
       success: false,
       error: "Background fetch failed",
-      message: error.message,
+      message: error instanceof Error ? error.message : "Unknown error",
       timestamp: new Date().toISOString(),
     });
   }
@@ -90,7 +90,7 @@ router.post("/fetch-partner-data", async (req, res) => {
 /**
  * Health check endpoint for webhook service
  */
-router.get("/health", (req, res) => {
+router.get("/health", (req: Request, res: Response) => {
   res.json({
     status: "OK",
     service: "webhook",
@@ -99,4 +99,4 @@ router.get("/health", (req, res) => {
   });
 });
 
-module.exports = router;
+export default router;
