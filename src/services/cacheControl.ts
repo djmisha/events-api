@@ -9,7 +9,7 @@ const CACHE_MAX_AGE = HOURS * 60 * 60;
  * Ensures a cache entry exists for the given location
  * If no entry exists, creates one with immediate update needed
  */
-const ensureCacheEntry = async (locationId: string): Promise<void> => {
+const ensureCacheEntry = async (locationId: number): Promise<void> => {
   const { data, error } = await supabase
     .from("cache_control")
     .select("location_id")
@@ -23,19 +23,14 @@ const ensureCacheEntry = async (locationId: string): Promise<void> => {
 
   if (!data) {
     const now = new Date();
-    // Create initial cache entry with expired timestamp to force update
     const { error: insertError } = await supabase.from("cache_control").insert({
       location_id: locationId,
       last_update: now.toISOString(),
-      next_update: now.toISOString(), // Immediate update needed
-      created_at: now.toISOString(),
-      updated_at: now.toISOString(),
+      next_update: now.toISOString(),
     });
 
     if (insertError) {
       logger.error("Cache entry creation error:", insertError);
-    } else {
-      logger.info(`Created cache entry for location ${locationId}`);
     }
   }
 };
@@ -44,7 +39,7 @@ const ensureCacheEntry = async (locationId: string): Promise<void> => {
  * Gets the cache status for a location
  */
 const getCacheStatus = async (
-  locationId: string
+  locationId: number
 ): Promise<"fresh" | "stale"> => {
   await ensureCacheEntry(locationId);
 
@@ -68,7 +63,7 @@ const getCacheStatus = async (
 /**
  * Updates the cache timestamp for a location
  */
-const updateCacheTimestamp = async (locationId: string): Promise<void> => {
+const updateCacheTimestamp = async (locationId: number): Promise<void> => {
   const now = new Date();
   const nextUpdate = new Date(now.getTime() + CACHE_MAX_AGE * 1000);
 
@@ -77,14 +72,11 @@ const updateCacheTimestamp = async (locationId: string): Promise<void> => {
     .update({
       last_update: now.toISOString(),
       next_update: nextUpdate.toISOString(),
-      updated_at: now.toISOString(),
     })
     .eq("location_id", locationId);
 
   if (error) {
     logger.error("Cache timestamp update error:", error);
-  } else {
-    logger.info(`Updated cache timestamp for location ${locationId}`);
   }
 };
 

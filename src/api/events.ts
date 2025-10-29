@@ -11,7 +11,6 @@ router.get("/:id/:city", async (req: Request, res: Response) => {
   try {
     const { id, city } = req.params;
 
-    // Validate parameters
     if (!id || !city) {
       return res.status(400).json({
         error: "Missing required parameters: id and city",
@@ -20,7 +19,6 @@ router.get("/:id/:city", async (req: Request, res: Response) => {
       });
     }
 
-    // Validate ID is a number
     const numericId = parseInt(id, 10);
     if (Number.isNaN(numericId)) {
       return res.status(400).json({
@@ -31,7 +29,7 @@ router.get("/:id/:city", async (req: Request, res: Response) => {
     }
 
     // Check cache status
-    const cacheStatus = await cacheControl.getCacheStatus(numericId.toString());
+    const cacheStatus = await cacheControl.getCacheStatus(numericId);
     logger.info(`Cache status for ${city} (${numericId}): ${cacheStatus}`);
 
     // Always fetch current data from database first
@@ -73,7 +71,10 @@ router.get("/:id/:city", async (req: Request, res: Response) => {
 
     return res.json(response);
   } catch (error) {
-    logger.error("Events endpoint error:", error);
+    logger.error({
+      msg: "Events endpoint error",
+      error: error instanceof Error ? error.message : String(error),
+    });
     return res.status(500).json({
       error: "Internal server error",
       message: "An unexpected error occurred",
