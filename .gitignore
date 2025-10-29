@@ -177,3 +177,5 @@ dist/
 # API documentation build
 docs/build/
 .vercel
+
+docs
