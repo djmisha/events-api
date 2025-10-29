@@ -13,6 +13,28 @@ const supabase = require("./supabaseClient");
 const logger = require("./logger");
 
 /**
+ * Retry helper for transient Supabase errors
+ */
+async function retryOperation(operation, maxRetries = 2, delayMs = 1000) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      const isRetryable = error.message?.includes('500') || 
+                          error.message?.includes('Internal server error') ||
+                          error.message?.includes('Cloudflare');
+      
+      if (isRetryable && attempt < maxRetries) {
+        logger.warn(`Retrying operation (attempt ${attempt + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, delayMs * (attempt + 1)));
+        continue;
+      }
+      throw error;
+    }
+  }
+}
+
+/**
  * Generate a consistent external_id from source and original ID
  */
 function generateExternalId(source, originalId) {
@@ -49,11 +71,30 @@ async function upsertVenue(venueData, source) {
 
   try {
     if (externalId) {
+      // Check if venue exists by external_id
+      const { data: existing, error: findError } = await supabase
+        .from("prtnr_venues")
+        .select("id")
+        .eq("external_id", externalId)
+        .maybeSingle();
+
+      if (findError) throw findError;
+
+      if (existing) {
+        // Update existing venue
+        const { error: updateError } = await supabase
+          .from("prtnr_venues")
+          .update(venue)
+          .eq("id", existing.id);
+
+        if (updateError) throw updateError;
+        return existing.id;
+      }
+
+      // Insert new venue
       const { data, error } = await supabase
         .from("prtnr_venues")
-        .upsert(venue, {
-          onConflict: "external_id",
-        })
+        .insert(venue)
         .select("id")
         .single();
 
@@ -85,9 +126,16 @@ async function upsertVenue(venueData, source) {
       return data.id;
     }
   } catch (error) {
-    logger.error("Error upserting venue:", {
-      error: error.message,
+    logger.error({
+      msg: "Error upserting venue",
+      error: error.message || String(error),
+      details: error.details || null,
+      hint: error.hint || null,
+      code: error.code || null,
       venue: venue.name,
+      externalId,
+      venueData: venue,
+      fullError: JSON.stringify(error, Object.getOwnPropertyNames(error)),
     });
     return null;
   }
@@ -123,16 +171,43 @@ async function upsertArtists(artistList, source) {
 
     try {
       if (externalId) {
-        const { data, error } = await supabase
-          .from("prtnr_artists")
-          .upsert(artist, {
-            onConflict: "external_id",
-          })
-          .select("id")
-          .single();
+        // Check if artist exists by external_id with retry
+        const result = await retryOperation(async () => {
+          const { data: existing, error: findError } = await supabase
+            .from("prtnr_artists")
+            .select("id")
+            .eq("external_id", externalId)
+            .maybeSingle();
 
-        if (error) throw error;
-        artistIds.push(data.id);
+          if (findError) throw findError;
+          return existing;
+        });
+
+        if (result) {
+          // Update existing artist
+          await retryOperation(async () => {
+            const { error: updateError } = await supabase
+              .from("prtnr_artists")
+              .update(artist)
+              .eq("id", result.id);
+
+            if (updateError) throw updateError;
+          });
+          artistIds.push(result.id);
+        } else {
+          // Insert new artist
+          const inserted = await retryOperation(async () => {
+            const { data, error } = await supabase
+              .from("prtnr_artists")
+              .insert(artist)
+              .select("id")
+              .single();
+
+            if (error) throw error;
+            return data;
+          });
+          artistIds.push(inserted.id);
+        }
       } else {
         // Try to find existing artist by name
         const { data: existing, error: findError } = await supabase
@@ -158,9 +233,16 @@ async function upsertArtists(artistList, source) {
         }
       }
     } catch (error) {
-      logger.error("Error upserting artist:", {
-        error: error.message,
+      logger.error({
+        msg: "Error upserting artist",
+        error: error.message || String(error),
+        details: error.details || null,
+        hint: error.hint || null,
+        code: error.code || null,
         artist: artist.name,
+        externalId,
+        artistData: artist,
+        fullError: JSON.stringify(error, Object.getOwnPropertyNames(error)),
       });
     }
   }
@@ -178,7 +260,10 @@ async function upsertEventArtists(eventId, artistIds) {
     return;
   }
 
-  const mappings = artistIds.map((artistId, index) => ({
+  // Remove duplicate artist IDs while preserving order
+  const uniqueArtistIds = [...new Set(artistIds)];
+
+  const mappings = uniqueArtistIds.map((artistId, index) => ({
     event_id: eventId,
     artist_id: artistId,
     display_order: index,
@@ -192,7 +277,14 @@ async function upsertEventArtists(eventId, artistIds) {
       .eq("event_id", eventId);
 
     if (deleteError) {
-      logger.error(`Error deleting old artist mappings for event ${eventId}:`, deleteError);
+      logger.error({
+        msg: `Error deleting old artist mappings for event ${eventId}`,
+        error: deleteError.message,
+        details: deleteError.details,
+        hint: deleteError.hint,
+        code: deleteError.code,
+      });
+      return; // Don't proceed if delete fails
     }
 
     // Insert new mappings
@@ -201,10 +293,24 @@ async function upsertEventArtists(eventId, artistIds) {
       .insert(mappings);
 
     if (error) {
-      logger.error(`Error inserting artist mappings for event ${eventId}:`, error);
+      logger.error({
+        msg: `Error inserting artist mappings for event ${eventId}`,
+        error: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        eventId,
+        artistCount: uniqueArtistIds.length,
+        mappings,
+      });
     }
   } catch (error) {
-    logger.error("Error managing event-artist mappings:", error);
+    logger.error({
+      msg: "Error managing event-artist mappings",
+      error: error.message,
+      stack: error.stack,
+      eventId,
+    });
   }
 }
 
@@ -256,7 +362,14 @@ async function upsertEventsWithRelations(events, source) {
         });
 
       if (eventError) {
-        logger.error(`Error upserting event ${event.id}:`, eventError);
+        logger.error({
+          msg: `Error upserting event ${event.id}`,
+          error: eventError.message,
+          details: eventError.details,
+          hint: eventError.hint,
+          code: eventError.code,
+          eventData,
+        });
         failed++;
         continue;
       }
@@ -286,7 +399,7 @@ async function getEventsWithRelations(locationId) {
       .from("prtnr_events")
       .select(`
         *,
-        venue:venues(*)
+        venue:prtnr_venues(*)
       `)
       .eq("location_id", locationId)
       .order("date", { ascending: true });
@@ -306,7 +419,7 @@ async function getEventsWithRelations(locationId) {
       .select(`
         event_id,
         display_order,
-        artist:artists(*)
+        artist:prtnr_artists(*)
       `)
       .in("event_id", eventIds)
       .order("display_order", { ascending: true });

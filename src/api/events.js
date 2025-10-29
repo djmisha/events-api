@@ -1,9 +1,8 @@
 const express = require("express");
-const supabase = require("../services/supabaseClient");
 const logger = require("../services/logger");
 const cacheControl = require("../services/cacheControl");
 const backgroundJobs = require("../services/backgroundJobs");
-const normalizedData = require("../services/normalizedData");
+const normalizedDataBatch = require("../services/normalizedDataBatch");
 
 const router = express.Router();
 
@@ -11,7 +10,6 @@ router.get("/:id/:city", async (req, res) => {
   try {
     const { id, city } = req.params;
 
-    // Validate parameters
     if (!id || !city) {
       return res.status(400).json({
         error: "Missing required parameters: id and city",
@@ -20,7 +18,6 @@ router.get("/:id/:city", async (req, res) => {
       });
     }
 
-    // Validate ID is a number
     const numericId = parseInt(id, 10);
     if (isNaN(numericId)) {
       return res.status(400).json({
@@ -32,15 +29,15 @@ router.get("/:id/:city", async (req, res) => {
 
     logger.info(`Events request: ${city} (ID: ${numericId})`);
 
-    // Fetch events with normalized venue and artists data
     let events;
     try {
-      events = await normalizedData.getEventsWithRelations(numericId);
+      events = await normalizedDataBatch.getEventsWithRelations(numericId);
     } catch (error) {
-      logger.error(`Database query error for ${city}:`, {
-        message: error.message,
-        code: error.code,
+      logger.error({
+        msg: `Database query error for ${city}`,
         cityId: numericId,
+        error: error.message,
+        code: error.code,
       });
 
       return res.status(500).json({
@@ -51,20 +48,16 @@ router.get("/:id/:city", async (req, res) => {
 
     logger.info(`Found ${events?.length || 0} events for ${city}`);
 
-    // Check if data needs update via cache control
-    const needsUpdate = await cacheControl.checkNeedsUpdate(
-      numericId.toString()
-    );
+    const needsUpdate = await cacheControl.checkNeedsUpdate(numericId.toString());
 
     if (needsUpdate) {
       logger.info(`Cache expired for ${city}, triggering background fetch`);
 
-      // Trigger background fetch using webhook approach for serverless compatibility
       setImmediate(() => {
         backgroundJobs
           .triggerBackgroundFetch(numericId, city)
           .catch((error) => {
-            logger.error(`Background fetch failed for ${city}:`, error);
+            logger.error({ msg: `Background fetch failed for ${city}`, error: error.message });
           });
       });
     }
@@ -78,7 +71,10 @@ router.get("/:id/:city", async (req, res) => {
       data: events || [],
     });
   } catch (error) {
-    logger.error("Events endpoint error:", error);
+    logger.error({
+      msg: "Events endpoint error",
+      error: error.message,
+    });
     return res.status(500).json({
       error: "Internal server error",
       message: "An unexpected error occurred",

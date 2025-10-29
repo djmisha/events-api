@@ -50,7 +50,9 @@ const normalizeEdmTrainEvents = (events, cityId, cityName) => {
       } catch (error) {
         logger.error("Error transforming EDM Train event:", {
           error: error.message,
+          stack: error.stack,
           eventId: event?.id,
+          eventData: JSON.stringify(event),
         });
         return null;
       }
@@ -131,8 +133,10 @@ const normalizeTicketmasterEvents = (events, cityId, cityName) => {
       } catch (error) {
         logger.error("Error transforming Ticketmaster event:", {
           error: error.message,
+          stack: error.stack,
           eventId: event?.id,
           eventName: event?.name,
+          eventData: JSON.stringify(event),
         });
         return null;
       }
