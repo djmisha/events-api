@@ -70,7 +70,7 @@ router.get("/:id/:city", async (req: Request, res: Response) => {
     };
 
     return res.json(response);
-  } catch (error) {
+  } catch (error: any) {
     logger.error({
       msg: "Events endpoint error",
       error: error.message,

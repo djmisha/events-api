@@ -3,15 +3,58 @@
  * High-performance batch operations for serverless environments
  */
 
-const supabase = require("./supabaseClient");
-const logger = require("./logger");
+import supabase from "./supabaseClient";
+import logger from "./logger";
 
-function generateExternalId(source, originalId) {
+interface Venue {
+  id: number | string;
+  name: string;
+  city?: string;
+  location?: string;
+  state?: string;
+  country?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+interface Artist {
+  id: number | string;
+  name: string;
+  link?: string;
+}
+
+interface Event {
+  id: number;
+  source: string;
+  link?: string;
+  name: string;
+  ages?: string;
+  festivalind: boolean;
+  livestreamind: boolean;
+  electronicgenreind: boolean;
+  othergenreind: boolean;
+  date: string;
+  starttime?: string;
+  endtime?: string;
+  createddate: string;
+  location_id: number;
+  venue?: Venue;
+  artistlist?: Artist[];
+}
+
+function generateExternalId(
+  source: string,
+  originalId: number | string
+): string | null {
   if (!originalId) return null;
   return `${source}:${originalId}`;
 }
 
-async function batchUpsertVenues(venues, source) {
+async function batchUpsertVenues(
+  venues: Venue[],
+  source: string
+): Promise<Map<string, string>> {
   if (!venues || venues.length === 0) return new Map();
 
   const venueRecords = venues.map((v) => ({
@@ -33,10 +76,12 @@ async function batchUpsertVenues(venues, source) {
     .select("id, external_id")
     .in("external_id", externalIds);
 
-  const existingMap = new Map();
+  const existingMap = new Map<string, string>();
   existing?.forEach((v) => existingMap.set(v.external_id, v.id));
 
-  const newVenues = venueRecords.filter((v) => !existingMap.has(v.external_id));
+  const newVenues = venueRecords.filter(
+    (v) => !existingMap.has(v.external_id as string)
+  );
 
   if (newVenues.length > 0) {
     const { data: inserted, error } = await supabase
@@ -45,7 +90,6 @@ async function batchUpsertVenues(venues, source) {
       .select("id, external_id");
 
     if (error && error.code === "23505") {
-      // Handle race condition: refetch to get all IDs
       const { data: refetch } = await supabase
         .from("prtnr_venues")
         .select("id, external_id")
@@ -70,7 +114,10 @@ async function batchUpsertVenues(venues, source) {
   return existingMap;
 }
 
-async function batchUpsertArtists(artists, source) {
+async function batchUpsertArtists(
+  artists: Artist[],
+  source: string
+): Promise<Map<string, string>> {
   if (!artists || artists.length === 0) return new Map();
 
   const artistRecords = artists.map((a) => ({
@@ -86,11 +133,11 @@ async function batchUpsertArtists(artists, source) {
     .select("id, external_id")
     .in("external_id", externalIds);
 
-  const existingMap = new Map();
+  const existingMap = new Map<string, string>();
   existing?.forEach((a) => existingMap.set(a.external_id, a.id));
 
   const newArtists = artistRecords.filter(
-    (a) => !existingMap.has(a.external_id)
+    (a) => !existingMap.has(a.external_id as string)
   );
 
   if (newArtists.length > 0) {
@@ -100,7 +147,6 @@ async function batchUpsertArtists(artists, source) {
       .select("id, external_id");
 
     if (error && error.code === "23505") {
-      // Handle race condition: refetch to get all IDs
       const { data: refetch } = await supabase
         .from("prtnr_artists")
         .select("id, external_id")
@@ -125,7 +171,10 @@ async function batchUpsertArtists(artists, source) {
   return existingMap;
 }
 
-async function upsertEventsWithRelations(events, source) {
+async function upsertEventsWithRelations(
+  events: Event[],
+  source: string
+): Promise<{ success: number; failed: number }> {
   if (!Array.isArray(events) || events.length === 0) {
     return { success: 0, failed: 0 };
   }
@@ -133,13 +182,13 @@ async function upsertEventsWithRelations(events, source) {
   const startTime = Date.now();
   logger.info(`Starting batch upsert for ${events.length} ${source} events`);
 
-  const uniqueVenues = new Map();
-  const uniqueArtists = new Map();
+  const uniqueVenues = new Map<string, Venue>();
+  const uniqueArtists = new Map<string, Artist>();
 
   events.forEach((event) => {
     if (event.venue?.id) {
       const venueKey = generateExternalId(source, event.venue.id);
-      if (!uniqueVenues.has(venueKey)) {
+      if (venueKey && !uniqueVenues.has(venueKey)) {
         uniqueVenues.set(venueKey, event.venue);
       }
     }
@@ -147,7 +196,7 @@ async function upsertEventsWithRelations(events, source) {
     event.artistlist?.forEach((artist) => {
       if (artist?.id) {
         const artistKey = generateExternalId(source, artist.id);
-        if (!uniqueArtists.has(artistKey)) {
+        if (artistKey && !uniqueArtists.has(artistKey)) {
           uniqueArtists.set(artistKey, artist);
         }
       }
@@ -167,10 +216,10 @@ async function upsertEventsWithRelations(events, source) {
     source
   );
 
-  const eventDataList = [];
-  const eventArtistMappings = [];
+  const eventDataList: any[] = [];
+  const eventArtistMappings: any[] = [];
 
-  for (const event of events) {
+  events.forEach((event) => {
     const venueKey = event.venue?.id
       ? generateExternalId(source, event.venue.id)
       : null;
@@ -194,11 +243,11 @@ async function upsertEventsWithRelations(events, source) {
       venue_id: venueId,
     });
 
-    const seenArtists = new Set();
+    const seenArtists = new Set<string>();
     event.artistlist?.forEach((artist) => {
       if (artist?.id) {
         const artistKey = generateExternalId(source, artist.id);
-        const artistId = artistIdMap.get(artistKey);
+        const artistId = artistKey ? artistIdMap.get(artistKey) : null;
         if (artistId && !seenArtists.has(artistId)) {
           seenArtists.add(artistId);
           eventArtistMappings.push({
@@ -209,7 +258,7 @@ async function upsertEventsWithRelations(events, source) {
         }
       }
     });
-  }
+  });
 
   const { error: eventsError } = await supabase
     .from("prtnr_events")
@@ -251,7 +300,7 @@ async function upsertEventsWithRelations(events, source) {
   return { success: events.length, failed: 0 };
 }
 
-async function getEventsWithRelations(locationId) {
+async function getEventsWithRelations(locationId: number): Promise<any[]> {
   try {
     const { data: events, error: eventsError } = await supabase
       .from("prtnr_events")
@@ -276,7 +325,7 @@ async function getEventsWithRelations(locationId) {
       });
     }
 
-    const artistsByEvent = {};
+    const artistsByEvent: Record<number, any[]> = {};
     artistMappings?.forEach((mapping) => {
       if (!artistsByEvent[mapping.event_id]) {
         artistsByEvent[mapping.event_id] = [];
@@ -288,7 +337,7 @@ async function getEventsWithRelations(locationId) {
       ...event,
       artists: artistsByEvent[event.id] || [],
     }));
-  } catch (error) {
+  } catch (error: any) {
     logger.error({
       msg: "Failed to fetch events with relations",
       error: error.message,
@@ -297,7 +346,7 @@ async function getEventsWithRelations(locationId) {
   }
 }
 
-module.exports = {
+export {
   upsertEventsWithRelations,
   getEventsWithRelations,
   generateExternalId,
