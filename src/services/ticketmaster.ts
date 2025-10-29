@@ -31,8 +31,18 @@ interface TicketmasterEvent {
   };
   url?: string;
   classifications?: Array<{
+    primary?: boolean;
+    segment?: {
+      id: string;
+      name: string;
+    };
     genre?: {
-      name?: string;
+      id: string;
+      name: string;
+    };
+    subGenre?: {
+      id: string;
+      name: string;
     };
   }>;
 }
