@@ -47,41 +47,26 @@ This system provides a TypeScript Express.js API to serve event data stored in a
 
 ### Database Setup
 
-Create the required tables in your Supabase database:
+The system uses a normalized relational schema with the `prtnr_` prefix for all tables.
 
-```sql
--- Events table
-CREATE TABLE partner_events (
-  id BIGINT PRIMARY KEY,
-  source TEXT,
-  name TEXT,
-  venue JSONB,
-  location_id INTEGER,
-  date DATE,
-  starttime TIME,
-  endtime TIME,
-  link TEXT,
-  ages TEXT,
-  festivalind BOOLEAN,
-  livestreamind BOOLEAN,
-  electronicgenreind BOOLEAN,
-  othergenreind BOOLEAN,
-  artistlist JSONB,
-  createddate TIMESTAMP DEFAULT NOW()
-);
+#### Setup for New Installations
 
--- Cache control table
-CREATE TABLE cache_control (
-  location_id TEXT PRIMARY KEY,
-  last_update TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  next_update TIMESTAMP WITH TIME ZONE DEFAULT NOW() + INTERVAL '6 hours',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+Run the schema creation SQL file in your Supabase SQL Editor:
 
--- Index for efficient cache queries
-CREATE INDEX idx_cache_control_next_update ON cache_control (next_update);
-```
+- File: `src/database/schema.sql`
+- This creates: `prtnr_venues`, `prtnr_artists`, `prtnr_events`, and `prtnr_event_artists` tables
+- Also creates `cache_control` table if it doesn't exist
+
+**New Tables Created:**
+
+- `prtnr_venues` - Venue records with UUID primary keys
+- `prtnr_artists` - Artist records with UUID primary keys
+- `prtnr_events` - Normalized event records with foreign keys
+- `prtnr_event_artists` - Many-to-many join table for event-artist relationships
+
+The existing `partner_events` table is left untouched and can coexist with the new schema.
+
+See `FRESH_SETUP.md` for detailed setup instructions.
 
 ### Installation
 
@@ -174,7 +159,7 @@ The project is configured for seamless TypeScript deployment on Vercel:
 
 2. **Set environment variables in Vercel dashboard:**
    - `SUPABASE_URL`
-   - `SUPABASE_SERVICE_KEY` 
+   - `SUPABASE_SERVICE_KEY`
    - `API_KEYS`
    - `WEBHOOK_SECRET`
    - `EDM_TRAIN_CLIENT_ID`
@@ -186,12 +171,14 @@ The project is configured for seamless TypeScript deployment on Vercel:
    ```
 
 **Deployment Process:**
+
 - Vercel automatically runs `npm run build` (TypeScript compilation)
 - Compiled JavaScript is served from `/dist` directory
 - Serverless functions use the compiled code for optimal performance
 - Source maps are included for debugging
 
 **Vercel Configuration:**
+
 - `vercel.json` handles TypeScript build process
 - `api/index.js` imports compiled server from `/dist`
 - Functions include compiled assets via `includeFiles`
