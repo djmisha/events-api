@@ -3,7 +3,7 @@ import supabase from "../services/supabaseClient";
 import logger from "../services/logger";
 import cacheControl from "../services/cacheControl";
 import backgroundJobs from "../services/backgroundJobs";
-import { PartnerEvent, ApiResponse } from "../types";
+import { ApiResponse, EventWithGenres } from "../types";
 
 const router = express.Router();
 
@@ -30,12 +30,37 @@ router.get("/:id/:city", async (req: Request, res: Response) => {
 
     // Check cache status
     const cacheStatus = await cacheControl.getCacheStatus(numericId);
-    logger.info(`Cache status for ${city} (${numericId}): ${cacheStatus}`);
 
-    // Always fetch current data from database first
+    // Always fetch current data from database first with joins for genres, venues, and artists
     const { data: events, error } = await supabase
-      .from("partner_events")
-      .select("*")
+      .from("prtnr_events")
+      .select(
+        `
+        *,
+        prtnr_venues (
+          id,
+          name,
+          address,
+          city,
+          state
+        ),
+        prtnr_event_genres (
+          classification_primary,
+          prtnr_genres (
+            id,
+            name,
+            normalized_name,
+            ticketmaster_genre_id
+          )
+        ),
+        prtnr_event_artists (
+          prtnr_artists (
+            id,
+            name
+          )
+        )
+      `
+      )
       .eq("location_id", numericId)
       .gte("date", new Date().toISOString().split("T")[0])
       .order("date", { ascending: true });
@@ -60,13 +85,62 @@ router.get("/:id/:city", async (req: Request, res: Response) => {
       });
     }
 
-    const response: ApiResponse<PartnerEvent[]> = {
+    // Transform events to include genres, venue, and artistlist in a more accessible format
+    const eventsWithGenres: EventWithGenres[] = (events || []).map(
+      (event: any) => {
+        const eventGenres = event.prtnr_event_genres || [];
+        const genres = eventGenres
+          .map((eg: any) => eg.prtnr_genres)
+          .filter(Boolean);
+        const primaryGenre =
+          eventGenres.find((eg: any) => eg.classification_primary)
+            ?.prtnr_genres || null;
+
+        // Transform venue from joined data
+        const venue = event.prtnr_venues
+          ? {
+              name: event.prtnr_venues.name,
+              address: event.prtnr_venues.address || undefined,
+              city: event.prtnr_venues.city || undefined,
+              state: event.prtnr_venues.state || undefined,
+            }
+          : undefined;
+
+        // Transform artistlist from joined data
+        const artistlist = (event.prtnr_event_artists || [])
+          .map((ea: any) => ea.prtnr_artists)
+          .filter(Boolean)
+          .map((artist: any) => ({
+            id: artist.id,
+            name: artist.name,
+          }));
+
+        // Remove the nested join tables and venue_id from the response
+        const {
+          prtnr_event_genres: _genres,
+          prtnr_venues: _venues,
+          prtnr_event_artists: _artists,
+          venue_id: _venueId,
+          ...eventData
+        } = event;
+
+        return {
+          ...eventData,
+          venue,
+          artistlist,
+          genres,
+          primary_genre: primaryGenre,
+        };
+      }
+    );
+
+    const response: ApiResponse<EventWithGenres[]> = {
       source: "database",
       id: numericId,
       city,
       cacheStatus,
-      count: events?.length || 0,
-      data: events || [],
+      count: eventsWithGenres?.length || 0,
+      data: eventsWithGenres || [],
     };
 
     return res.json(response);

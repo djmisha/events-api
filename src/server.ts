@@ -6,6 +6,7 @@ import eventsRouter from "./api/events";
 import healthRouter from "./api/health";
 import testRouter from "./api/test";
 import webhookRouter from "./api/webhook";
+import genresRouter from "./api/genres";
 import logger from "./services/logger";
 import apiKeyAuth from "./middleware/apiKeyAuth";
 
@@ -29,6 +30,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 // Protected API Routes (require API key)
 app.use("/api/v1/events", apiKeyAuth, eventsRouter);
+app.use("/api/genres", apiKeyAuth, genresRouter);
 
 // Webhook routes (use their own WEBHOOK_SECRET authentication)
 app.use("/api/webhook", webhookRouter);

@@ -35,11 +35,15 @@ const normalizeEdmTrainEvents = (
   return events
     .map((event): PartnerEvent | null => {
       try {
+        // Check if event is electronic music (default to true if not specified)
+        const isElectronic = event.electronicgenreind !== false;
+
         return {
           id: parseInt(event.id, 10) || 0,
           source: "edmtrain",
           name: event.name || "",
           venue: {
+            id: event.venue?.id || `edmtrain-venue-${event.venue?.name}`,
             name: event.venue?.name || "",
             address: event.venue?.address,
           },
@@ -51,8 +55,8 @@ const normalizeEdmTrainEvents = (
           ages: event.ages || null,
           festivalind: false,
           livestreamind: false,
-          electronicgenreind: true,
-          othergenreind: false,
+          electronicgenreind: isElectronic,
+          othergenreind: !isElectronic,
           artistlist:
             event.artistList?.map((artist: any) => ({
               id: parseInt(artist.id, 10) || 0,
@@ -89,6 +93,7 @@ const normalizeTicketmasterEvents = (
           source: "ticketmaster",
           name: event.name || "",
           venue: {
+            id: venue?.id || `ticketmaster-venue-${venue?.name}`,
             name: venue?.name || "",
             address: venue?.address?.line1,
             city: venue?.city?.name,
@@ -118,6 +123,7 @@ const normalizeTicketmasterEvents = (
               undefined,
           })),
           createddate: new Date().toISOString(),
+          classifications: event.classifications || null,
         };
       } catch (error) {
         logger.error("Error transforming Ticketmaster event:", error);

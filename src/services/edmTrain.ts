@@ -17,6 +17,7 @@ interface EdmTrainEvent {
     id: string;
     name: string;
   }>;
+  electronicgenreind?: boolean; // EDM Train API flag for electronic music events
 }
 
 class EdmTrainService {

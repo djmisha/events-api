@@ -20,15 +20,22 @@ module.exports = {
         sourceType: "module",
       },
       rules: {
-        "@typescript-eslint/no-unused-vars": "error",
+        "@typescript-eslint/no-unused-vars": [
+          "error",
+          {
+            argsIgnorePattern: "^_",
+            varsIgnorePattern: "^_",
+            caughtErrorsIgnorePattern: "^_",
+          },
+        ],
         "no-unused-vars": "off",
         "import/extensions": "off",
         "import/no-unresolved": "off",
         "import/prefer-default-export": "off",
-        quotes: "off", // Let Prettier handle quotes
-        "comma-dangle": "off", // Let Prettier handle trailing commas
-        "operator-linebreak": "off", // Let Prettier handle line breaks
-        indent: "off", // Let Prettier handle indentation
+        quotes: "off",
+        "comma-dangle": "off",
+        "operator-linebreak": "off",
+        indent: "off",
         "lines-between-class-members": "off",
         "no-underscore-dangle": "off",
         "consistent-return": "off",
