@@ -38,6 +38,13 @@ router.get("/:id/:city", async (req: Request, res: Response) => {
       .select(
         `
         *,
+        prtnr_venues (
+          id,
+          name,
+          address,
+          city,
+          state
+        ),
         prtnr_event_genres (
           classification_primary,
           prtnr_genres (
@@ -45,6 +52,13 @@ router.get("/:id/:city", async (req: Request, res: Response) => {
             name,
             normalized_name,
             ticketmaster_genre_id
+          )
+        ),
+        prtnr_event_artists (
+          prtnr_artists (
+            id,
+            name,
+            link
           )
         )
       `
@@ -73,7 +87,7 @@ router.get("/:id/:city", async (req: Request, res: Response) => {
       });
     }
 
-    // Transform events to include genres in a more accessible format
+    // Transform events to include genres, venue, and artistlist in a more accessible format
     const eventsWithGenres: EventWithGenres[] = (events || []).map(
       (event: any) => {
         const eventGenres = event.prtnr_event_genres || [];
@@ -84,11 +98,39 @@ router.get("/:id/:city", async (req: Request, res: Response) => {
           eventGenres.find((eg: any) => eg.classification_primary)
             ?.prtnr_genres || null;
 
-        // Remove the nested prtnr_event_genres from the response
-        const { prtnr_event_genres, ...eventData } = event;
+        // Transform venue from joined data
+        const venue = event.prtnr_venues
+          ? {
+              name: event.prtnr_venues.name,
+              address: event.prtnr_venues.address || undefined,
+              city: event.prtnr_venues.city || undefined,
+              state: event.prtnr_venues.state || undefined,
+            }
+          : undefined;
+
+        // Transform artistlist from joined data
+        const artistlist = (event.prtnr_event_artists || [])
+          .map((ea: any) => ea.prtnr_artists)
+          .filter(Boolean)
+          .map((artist: any) => ({
+            id: artist.id,
+            name: artist.name,
+            link: artist.link || undefined,
+          }));
+
+        // Remove the nested join tables from the response
+        const {
+          prtnr_event_genres,
+          prtnr_venues,
+          prtnr_event_artists,
+          venue_id,
+          ...eventData
+        } = event;
 
         return {
           ...eventData,
+          venue,
+          artistlist,
           genres,
           primary_genre: primaryGenre,
         };
