@@ -26,7 +26,7 @@ router.get("/", async (req: Request, res: Response) => {
   try {
     // Check Supabase connection
     const { error } = await supabase
-      .from("partner_events")
+      .from("prtnr_events")
       .select("count")
       .limit(1);
     healthCheck.services.database = error ? "ERROR" : "OK";

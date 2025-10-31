@@ -34,7 +34,7 @@ router.get("/:id/:city", async (req: Request, res: Response) => {
 
     // Always fetch current data from database first
     const { data: events, error } = await supabase
-      .from("partner_events")
+      .from("prtnr_events")
       .select("*")
       .eq("location_id", numericId)
       .gte("date", new Date().toISOString().split("T")[0])

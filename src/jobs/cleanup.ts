@@ -9,7 +9,7 @@ export const execute = async (): Promise<void> => {
 
     // Delete events that have already occurred
     const { data: deletedEvents, error } = await supabase
-      .from("partner_events")
+      .from("prtnr_events")
       .delete()
       .lt("date", now)
       .select("id");

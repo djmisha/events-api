@@ -43,6 +43,7 @@ const normalizeEdmTrainEvents = (
           source: "edmtrain",
           name: event.name || "",
           venue: {
+            id: event.venue?.id || `edmtrain-venue-${event.venue?.name}`,
             name: event.venue?.name || "",
             address: event.venue?.address,
           },
@@ -92,6 +93,7 @@ const normalizeTicketmasterEvents = (
           source: "ticketmaster",
           name: event.name || "",
           venue: {
+            id: venue?.id || `ticketmaster-venue-${venue?.name}`,
             name: venue?.name || "",
             address: venue?.address?.line1,
             city: venue?.city?.name,
@@ -121,6 +123,7 @@ const normalizeTicketmasterEvents = (
               undefined,
           })),
           createddate: new Date().toISOString(),
+          classifications: event.classifications || null,
         };
       } catch (error) {
         logger.error("Error transforming Ticketmaster event:", error);

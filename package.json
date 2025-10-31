@@ -9,7 +9,6 @@
     "build": "tsc",
     "cleanup": "ts-node -e \"require('./src/jobs/cleanup').execute()\"",
     "genres:bootstrap": "ts-node src/jobs/bootstrapGenres.ts",
-    "genres:backfill": "ts-node src/jobs/backfillEventGenres.ts",
     "vercel-build": "tsc",
     "lint": "./scripts/pre-commit.sh",
     "test": "echo \"Error: no test specified\" && exit 1",

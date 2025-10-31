@@ -1,3 +1,24 @@
+/**
+ * Genre Bootstrap Job
+ *
+ * One-time initialization job to populate the prtnr_genres table with
+ * initial music genres from Ticketmaster API.
+ *
+ * Usage: npm run genres:bootstrap
+ *
+ * Operations:
+ * 1. Samples 200 Ticketmaster events to extract unique music genres
+ * 2. Upserts each genre into prtnr_genres table
+ * 3. Creates normalized names for URL slugs
+ *
+ * Database Operations:
+ * - N upsert queries (one per unique genre found)
+ * - Typically creates 10-20 initial genres
+ *
+ * Note: After bootstrap, new genres are created automatically during
+ * webhook runs, so this only needs to run once during initial setup.
+ */
+
 import ticketmasterGenresService from "../services/ticketmasterGenres";
 import genreService from "../services/genres";
 import logger from "../services/logger";

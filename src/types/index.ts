@@ -3,6 +3,7 @@ export interface PartnerEvent {
   source: string;
   name: string;
   venue: {
+    id: number | string;
     name: string;
     address?: string;
     city?: string;
@@ -24,6 +25,7 @@ export interface PartnerEvent {
     link?: string;
   }>;
   createddate: string;
+  classifications?: TicketmasterClassification[] | null;
 }
 
 export interface CacheControl {

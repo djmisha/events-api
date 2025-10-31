@@ -1,3 +1,17 @@
+/**
+ * Genre Service
+ *
+ * Handles genre-related database operations including:
+ * - Upserting genres from Ticketmaster API
+ * - Fetching genre lists with optional filters
+ * - Mapping events to genres via classifications
+ *
+ * Database Operations:
+ * - Uses upsert for idempotent genre creation
+ * - Batch operations where possible for performance
+ * - Automatic normalization of genre names for URL slugs
+ */
+
 import supabase from "./supabaseClient";
 import logger from "./logger";
 import { Genre, TicketmasterClassification } from "../types";

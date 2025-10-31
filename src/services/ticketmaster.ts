@@ -50,14 +50,12 @@ interface TicketmasterEvent {
 class TicketmasterService {
   private apiKey: string | undefined;
   private baseURL: string | undefined;
-  private genreId: string;
   private url: string;
 
   constructor() {
     this.apiKey = process.env.TICKETMASTER_API_KEY;
     this.baseURL = process.env.TICKETMASTER_API_URL;
-    this.genreId = "KnvZfZ7vAvF"; // Dance / Electronic genreId
-    this.url = `${this.baseURL}apikey=${this.apiKey}&genreId=${this.genreId}&city=`;
+    this.url = `${this.baseURL}apikey=${this.apiKey}&city=`;
 
     if (!this.apiKey) {
       logger.warn("Ticketmaster API key not configured");
@@ -70,7 +68,8 @@ class TicketmasterService {
   ): Promise<TicketmasterEvent[]> {
     try {
       const cityForTicketmaster = cityName.replace(/-/g, " ");
-      const requestUrl = `${this.url}${encodeURIComponent(cityForTicketmaster)}`;
+      // Add segmentId=KZFzniwnSyZfZ7v7nJ (Music) to filter only music events
+      const requestUrl = `${this.url}${encodeURIComponent(cityForTicketmaster)}&segmentId=KZFzniwnSyZfZ7v7nJ`;
       const response = await axios.get(requestUrl);
 
       if (

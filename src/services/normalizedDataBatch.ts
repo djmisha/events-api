@@ -96,18 +96,16 @@ async function batchUpsertVenues(
         .in("external_id", externalIds);
       refetch?.forEach((v) => existingMap.set(v.external_id, v.id));
       logger.warn(
-        `Race condition detected inserting ${newVenues.length} venues, refetched successfully`
+        `Race condition detected inserting venues, refetched successfully`
       );
     } else if (error) {
       logger.error({
         msg: "Batch venue insert failed",
         error: error.message,
         code: error.code,
-        count: newVenues.length,
       });
     } else {
       inserted?.forEach((v) => existingMap.set(v.external_id, v.id));
-      logger.info(`Inserted ${inserted.length} new venues`);
     }
   }
 
@@ -153,18 +151,16 @@ async function batchUpsertArtists(
         .in("external_id", externalIds);
       refetch?.forEach((a) => existingMap.set(a.external_id, a.id));
       logger.warn(
-        `Race condition detected inserting ${newArtists.length} artists, refetched successfully`
+        `Race condition detected inserting artists, refetched successfully`
       );
     } else if (error) {
       logger.error({
         msg: "Batch artist insert failed",
         error: error.message,
         code: error.code,
-        count: newArtists.length,
       });
     } else {
       inserted?.forEach((a) => existingMap.set(a.external_id, a.id));
-      logger.info(`Inserted ${inserted.length} new artists`);
     }
   }
 
@@ -176,11 +172,8 @@ async function upsertEventsWithRelations(
   source: string
 ): Promise<{ success: number; failed: number }> {
   if (!Array.isArray(events) || events.length === 0) {
-    return { success: 0, failed: 0 };
+    return { success: 0, failed: events.length };
   }
-
-  const startTime = Date.now();
-  logger.info(`Starting batch upsert for ${events.length} ${source} events`);
 
   const uniqueVenues = new Map<string, Venue>();
   const uniqueArtists = new Map<string, Artist>();
@@ -202,10 +195,6 @@ async function upsertEventsWithRelations(
       }
     });
   });
-
-  logger.info(
-    `Processing ${uniqueVenues.size} venues and ${uniqueArtists.size} artists`
-  );
 
   const venueIdMap = await batchUpsertVenues(
     Array.from(uniqueVenues.values()),
@@ -291,11 +280,6 @@ async function upsertEventsWithRelations(
       });
     }
   }
-
-  const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-  logger.info(
-    `Batch upsert completed: ${events.length} events in ${duration}s`
-  );
 
   return { success: events.length, failed: 0 };
 }
