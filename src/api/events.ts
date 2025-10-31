@@ -3,7 +3,7 @@ import supabase from "../services/supabaseClient";
 import logger from "../services/logger";
 import cacheControl from "../services/cacheControl";
 import backgroundJobs from "../services/backgroundJobs";
-import { PartnerEvent, ApiResponse, EventWithGenres } from "../types";
+import { ApiResponse, EventWithGenres } from "../types";
 
 const router = express.Router();
 
@@ -30,7 +30,6 @@ router.get("/:id/:city", async (req: Request, res: Response) => {
 
     // Check cache status
     const cacheStatus = await cacheControl.getCacheStatus(numericId);
-    logger.info(`Cache status for ${city} (${numericId}): ${cacheStatus}`);
 
     // Always fetch current data from database first with joins for genres, venues, and artists
     const { data: events, error } = await supabase
@@ -57,8 +56,7 @@ router.get("/:id/:city", async (req: Request, res: Response) => {
         prtnr_event_artists (
           prtnr_artists (
             id,
-            name,
-            link
+            name
           )
         )
       `
@@ -115,15 +113,14 @@ router.get("/:id/:city", async (req: Request, res: Response) => {
           .map((artist: any) => ({
             id: artist.id,
             name: artist.name,
-            link: artist.link || undefined,
           }));
 
-        // Remove the nested join tables from the response
+        // Remove the nested join tables and venue_id from the response
         const {
-          prtnr_event_genres,
-          prtnr_venues,
-          prtnr_event_artists,
-          venue_id,
+          prtnr_event_genres: _genres,
+          prtnr_venues: _venues,
+          prtnr_event_artists: _artists,
+          venue_id: _venueId,
           ...eventData
         } = event;
 
