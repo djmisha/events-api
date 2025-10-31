@@ -45,13 +45,9 @@ export const execute = async (
     await cacheControl.updateCacheTimestamp(cityId);
     logger.info(`Completed data fetch for ${cityName} (ID: ${cityId})`);
   } catch (error) {
-    logger.error({
-      msg: `Data fetch failed for ${cityName} (ID: ${cityId})`,
-      error,
-      errorMessage: error instanceof Error ? error.message : String(error),
-      errorStack: error instanceof Error ? error.stack : undefined,
+    logger.error(`Data fetch failed for ${cityName} (ID: ${cityId})`, {
+      error: error instanceof Error ? error.message : String(error),
       cityId,
-      cityName,
     });
     throw error;
   }
