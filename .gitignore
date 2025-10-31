@@ -178,4 +178,4 @@ dist/
 docs/build/
 .vercel
 
-docs
+docs-local
