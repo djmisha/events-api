@@ -1,3 +1,8 @@
+// TODO!: Build out this job so that it will periodically remove past events from the database.
+// it will remove events for a specific location, including all associated data
+// such as artist events
+// mappings. It should maintain the database to be clear and only future events are stored.
+
 import supabase from "../services/supabaseClient";
 import logger from "../services/logger";
 
