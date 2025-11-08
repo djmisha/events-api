@@ -333,6 +333,7 @@ async function upsertEventsWithRelations(
       id: event.id,
       source: event.source,
       link: event.link,
+      image: event.image,
       name: event.name,
       ages: event.ages,
       festivalind: event.festivalind,

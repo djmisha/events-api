@@ -152,8 +152,8 @@ const normalizeTicketmasterEvents = (
  * @returns The generated image URL string or null if no artist is available.
  */
 const generateEDMtrainImageURL = (event: PartnerEvent): string | null => {
-  if (event.artistlist && event.artistlist.length > 0) {
-    const artistId = event.artistlist[0].id;
+  if (event.artistList && event.artistList.length > 0) {
+    const artistId = event.artistList[0].id;
     return `https://www.grooverooster.com/images/artists/${artistId}.jpg`;
   }
   return null;

@@ -23,6 +23,11 @@ export interface PartnerEvent {
   livestreamind: boolean;
   electronicgenreind: boolean;
   othergenreind: boolean;
+  artistList?: Array<{
+    id: number;
+    name: string;
+    link?: string;
+  }>;
   artistlist: Array<{
     id: number;
     name: string;
