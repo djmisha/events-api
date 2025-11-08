@@ -8,12 +8,16 @@ export interface PartnerEvent {
     address?: string;
     city?: string;
     state?: string;
+    country?: string;
+    latitude?: number;
+    longitude?: number;
   };
   location_id: number;
   date: string;
   starttime?: string | null;
   endtime?: string | null;
   link?: string | null;
+  image: string | null;
   ages?: string | null;
   festivalind: boolean;
   livestreamind: boolean;
@@ -107,4 +111,48 @@ export interface TicketmasterClassification {
 export interface EventWithGenres extends PartnerEvent {
   genres?: Genre[];
   primary_genre?: Genre | null;
+}
+
+// Normalized Data Batch Service Types
+export interface NormalizedVenue {
+  id: number | string;
+  name: string;
+  city?: string;
+  location?: string;
+  state?: string;
+  country?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+export interface NormalizedArtist {
+  id: number | string;
+  name: string;
+  link?: string;
+}
+
+export interface NormalizedEvent {
+  id: number;
+  source: string;
+  link?: string;
+  image?: string | null;
+  name: string;
+  ages?: string;
+  festivalind: boolean;
+  livestreamind: boolean;
+  electronicgenreind: boolean;
+  othergenreind: boolean;
+  date: string;
+  starttime?: string;
+  endtime?: string;
+  createddate: string;
+  location_id: number;
+  venue?: NormalizedVenue;
+  artistlist?: NormalizedArtist[];
+}
+
+export interface BatchUpsertResult {
+  success: number;
+  failed: number;
 }
