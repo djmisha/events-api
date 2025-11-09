@@ -31,6 +31,13 @@ router.get("/:id/:city", async (req: Request, res: Response) => {
     // Check cache status
     const cacheStatus = await cacheControl.getCacheStatus(numericId);
 
+    // Calculate the date for "yesterday" in UTC
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setUTCDate(today.getUTCDate() - 1); // Go back one day in UTC
+
+    const yesterdayDate = yesterday.toISOString().split("T")[0]; // Format as YYYY-MM-DD
+
     // Always fetch current data from database first with joins for genres, venues, and artists
     const { data: events, error } = await supabase
       .from("prtnr_events")
@@ -62,7 +69,7 @@ router.get("/:id/:city", async (req: Request, res: Response) => {
       `
       )
       .eq("location_id", numericId)
-      .gte("date", new Date().toISOString().split("T")[0])
+      .gte("date", yesterdayDate) // Include events from yesterday onwards
       .order("date", { ascending: true });
 
     if (error) {
