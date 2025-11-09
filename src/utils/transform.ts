@@ -124,10 +124,9 @@ const normalizeTicketmasterEvents = (
           electronicgenreind: false,
           othergenreind: false,
           artistlist: attractions.map((attraction: any) => ({
-            id: parseInt(
-              attraction.id?.replace(/[^0-9]/g, "") ||
-                Math.floor(Math.random() * 100000),
-              10
+            id: generateNumericIdFromString(
+              attraction.id || `unknown-artist-${attraction.name}-${Math.random()}`,
+              "ticketmaster-artist"
             ),
             name: attraction.name || "",
             link:
