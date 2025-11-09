@@ -167,15 +167,15 @@ const generateEDMtrainImageURL = (event: PartnerEvent): string | null => {
  */
 const generateTicketmasterImageURL = (event: any): string | null => {
   // First, try to get image from the event's own images array
-  if (event.images && event.images.length > 0) {
-    return event.images[0].url;
+  if (event.images && event.images.length > 1) {
+    return event.images[1].url;
   }
   // Fallback: try to get image from the first attraction's images array
   if (
     event._embedded?.attractions?.[0]?.images &&
     event._embedded.attractions[0].images.length > 0
   ) {
-    return event._embedded.attractions[0].images[0].url;
+    return event._embedded.attractions[0].images[2].url;
   }
   return null;
 };
