@@ -30,6 +30,9 @@ interface TicketmasterEvent {
     }>;
   };
   url?: string;
+  images?: Array<{
+    url: string;
+  }>;
   classifications?: Array<{
     primary?: boolean;
     segment?: {
