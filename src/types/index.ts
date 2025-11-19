@@ -161,3 +161,31 @@ export interface BatchUpsertResult {
   success: number;
   failed: number;
 }
+
+// Top Artists Types
+export interface TopArtist {
+  id: string; // UUID
+  artist_id: string; // UUID
+  artist_name: string;
+  total_shows: number;
+  unique_cities: number;
+  rank_by_shows: number | null;
+  rank_by_cities: number | null;
+  last_calculated: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TopArtistStats {
+  artist_id: string;
+  artist_name: string;
+  total_shows: number;
+  unique_cities: number;
+}
+
+export interface TopArtistsResponse {
+  data: TopArtist[];
+  count: number;
+  last_updated: string | null;
+  sort_by: "shows" | "cities";
+}

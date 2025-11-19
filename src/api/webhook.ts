@@ -88,6 +88,63 @@ router.post("/fetch-partner-data", async (req: Request, res: Response) => {
 });
 
 /**
+ * Webhook endpoint for calculating top artists
+ * Used for scheduled weekly calculations in serverless environments
+ */
+router.post("/calculate-top-artists", async (req: Request, res: Response) => {
+  try {
+    // Basic authentication check
+    const authHeader = req.headers.authorization;
+    const expectedSecret = process.env.WEBHOOK_SECRET || "dev-secret";
+
+    if (!authHeader || authHeader !== `Bearer ${expectedSecret}`) {
+      logger.warn("Unauthorized webhook request to calculate-top-artists", {
+        authHeader,
+        ip: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "Invalid webhook secret",
+      });
+    }
+
+    logger.info("Webhook executing top artists calculation");
+
+    // Execute the calculation job
+    const startTime = Date.now();
+    const { execute: calculateTopArtists } = await import(
+      "../jobs/calculateTopArtists"
+    );
+    await calculateTopArtists();
+    const duration = Date.now() - startTime;
+
+    logger.info("Webhook top artists calculation completed successfully", {
+      duration: `${duration}ms`,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Top artists calculation completed successfully",
+      duration: `${duration}ms`,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    logger.error("Webhook calculate-top-artists error:", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+
+    res.status(500).json({
+      success: false,
+      error: "Top artists calculation failed",
+      message: error instanceof Error ? error.message : "Unknown error",
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+/**
  * Health check endpoint for webhook service
  */
 router.get("/health", (req: Request, res: Response) => {

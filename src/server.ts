@@ -7,6 +7,7 @@ import healthRouter from "./api/health";
 import testRouter from "./api/test";
 import webhookRouter from "./api/webhook";
 import genresRouter from "./api/genres";
+import topArtistsRouter from "./api/topArtists";
 import logger from "./services/logger";
 import apiKeyAuth from "./middleware/apiKeyAuth";
 
@@ -30,6 +31,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 // Protected API Routes (require API key)
 app.use("/api/v1/events", apiKeyAuth, eventsRouter);
+app.use("/api/v1/top-artists", apiKeyAuth, topArtistsRouter);
 app.use("/api/genres", apiKeyAuth, genresRouter);
 
 // Webhook routes (use their own WEBHOOK_SECRET authentication)
@@ -56,11 +58,28 @@ app.get("/", (req: Request, res: Response) => {
       authentication: "API Key required",
       example: "/api/v1/events/71/chicago",
     },
+    topArtists: {
+      path: "/api/v1/top-artists",
+      authentication: "API Key required",
+      method: "GET",
+      queryParams: "?sort_by=shows|cities&limit=200",
+      examples: [
+        "/api/v1/top-artists?sort_by=shows&limit=50",
+        "/api/v1/top-artists?sort_by=cities&limit=100",
+      ],
+      description: "Get top 200 touring artists by shows or unique cities",
+    },
     webhook: {
       path: "/api/webhook/fetch-partner-data",
       authentication: "WEBHOOK_SECRET required",
       method: "POST",
       note: "For background processing only",
+    },
+    webhookTopArtists: {
+      path: "/api/webhook/calculate-top-artists",
+      authentication: "WEBHOOK_SECRET required",
+      method: "POST",
+      note: "Calculates top artists (run weekly)",
     },
     health: {
       path: "/health",
