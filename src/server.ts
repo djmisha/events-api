@@ -92,6 +92,7 @@ app.get("/", (req: Request, res: Response) => {
         "/api/test/edmtrain/71/chicago",
         "/api/test/ticketmaster/71/chicago",
         "/api/test/combined/71/chicago",
+        "/api/test/calculate-top-artists",
       ],
     },
   };

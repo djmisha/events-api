@@ -33,6 +33,7 @@ This system provides a TypeScript Express.js API to serve event data stored in a
 - 📝 **Structured logging** - Comprehensive request and error tracking
 - 🔒 **Type Safety** - Full TypeScript implementation with strict typing
 - 🛠️ **Developer Experience** - ESLint, Prettier, and pre-commit hooks
+- 🎤 **Top Artists** - Track and query top 200 touring artists by shows and cities
 
 ## Getting Started
 
@@ -63,6 +64,7 @@ Run the schema creation SQL file in your Supabase SQL Editor:
 - `prtnr_artists` - Artist records with UUID primary keys
 - `prtnr_events` - Normalized event records with foreign keys
 - `prtnr_event_artists` - Many-to-many join table for event-artist relationships
+- `prtnr_top_artists` - Pre-calculated top 200 touring artists (see [Top Artists Feature](#top-artists-feature))
 
 The existing `partner_events` table is left untouched and can coexist with the new schema.
 
@@ -271,6 +273,61 @@ The project includes comprehensive development tools:
 - **Code Formatting**: Prettier with double quotes and 80-character line width
 - **Linting**: ESLint with Airbnb configuration for both JS and TS files
 - **Type Checking**: Strict TypeScript compilation with source maps
+
+## Top Artists Feature
+
+The API includes a comprehensive top artists tracking system that identifies and ranks the most active touring artists. For complete documentation, see [TOP_ARTISTS.md](TOP_ARTISTS.md).
+
+### Quick Start
+
+1. **Create the database table**:
+   ```bash
+   # Run the SQL schema in your Supabase SQL Editor
+   src/database/top_artists_schema.sql
+   ```
+
+2. **Calculate top artists**:
+   ```bash
+   # Manual calculation
+   npm run calculate-top-artists
+   
+   # Or via webhook (production)
+   curl -X POST \
+     -H "Authorization: Bearer YOUR_WEBHOOK_SECRET" \
+     https://your-domain.com/api/webhook/calculate-top-artists
+   ```
+
+3. **Query top artists**:
+   ```bash
+   # Get top 50 artists by total shows
+   curl -H "x-api-key: YOUR_API_KEY" \
+     "https://your-domain.com/api/v1/top-artists?sort_by=shows&limit=50"
+   
+   # Get top 100 artists by unique cities
+   curl -H "x-api-key: YOUR_API_KEY" \
+     "https://your-domain.com/api/v1/top-artists?sort_by=cities&limit=100"
+   ```
+
+### Endpoints
+
+- **GET** `/api/v1/top-artists` - Retrieve top artists (requires API key)
+  - Query params: `sort_by=shows|cities`, `limit=1-200`
+- **POST** `/api/webhook/calculate-top-artists` - Calculate top artists (requires webhook secret)
+
+### Scheduling
+
+For weekly updates, set up a cron job or use Vercel Cron:
+
+```json
+{
+  "crons": [{
+    "path": "/api/webhook/calculate-top-artists",
+    "schedule": "0 0 * * 0"
+  }]
+}
+```
+
+See [TOP_ARTISTS.md](TOP_ARTISTS.md) for complete documentation.
 
 ## Contributing
 
