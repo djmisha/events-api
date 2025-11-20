@@ -2,7 +2,7 @@
  * Partner Data Fetch Job
  *
  * Fetches events from EDM Train and Ticketmaster APIs, transforms them,
- * stores in normalized database schema, and assigns genres automatically.
+ * stores in normalized database schema, assigns genres, and cleans up old data.
  *
  * Features:
  * - Fetches only Music events from Ticketmaster (segmentId filter)
@@ -10,11 +10,14 @@
  * - Batch upserts for optimal performance (venues, artists, events, genres)
  * - Automatic genre assignment based on API classifications
  * - Creates missing genres on-the-fly from Ticketmaster data
+ * - Automatic cleanup of events older than 3 days
+ * - Removes orphaned venues and artists
  *
  * Database Operations per Webhook:
  * - Upsert venues, artists, events (batch operations)
  * - Fetch/create genres and assign to events (2-3 queries total)
- * - Total: ~5-6 queries for 100+ events
+ * - Delete old events and orphaned records (2-4 queries total)
+ * - Total: ~7-10 queries for 100+ events
  */
 
 import edmTrainService from "../services/edmTrain";
@@ -25,6 +28,136 @@ import transform from "../utils/transform";
 import logger from "../services/logger";
 import { PartnerEvent } from "../types";
 import { upsertEventsWithRelations } from "../services/normalizedDataBatch";
+
+/**
+ * Clean up old events for a specific location.
+ * Deletes events older than 3 days. Related records deleted via CASCADE.
+ *
+ * @param locationId - The location ID to clean up
+ * @returns Number of events deleted
+ */
+const cleanupOldEvents = async (locationId: number): Promise<number> => {
+  try {
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    const cutoffDate = threeDaysAgo.toISOString().split("T")[0]; // Format: YYYY-MM-DD
+
+    // First, get the IDs of events to delete
+    const { data: eventsToDelete, error: fetchError } = await supabase
+      .from("prtnr_events")
+      .select("id")
+      .eq("location_id", locationId)
+      .lt("date", cutoffDate);
+
+    if (fetchError) {
+      logger.error("Failed to fetch old events for cleanup", {
+        error: fetchError.message,
+        locationId,
+        cutoffDate,
+      });
+      return 0; // Don't throw - cleanup failure shouldn't break the entire job
+    }
+
+    if (!eventsToDelete || eventsToDelete.length === 0) {
+      logger.debug(`No old events to clean up for location ${locationId}`);
+      return 0;
+    }
+
+    const eventCount = eventsToDelete.length;
+    logger.info(
+      `Found ${eventCount} old events to delete for location ${locationId}`
+    );
+
+    // Delete the events - CASCADE will automatically delete related records:
+    // - prtnr_event_artists (event-artist relationships)
+    // - prtnr_event_genres (event-genre relationships)
+    const { error: deleteError } = await supabase
+      .from("prtnr_events")
+      .delete()
+      .eq("location_id", locationId)
+      .lt("date", cutoffDate);
+
+    if (deleteError) {
+      logger.error("Failed to delete old events", {
+        error: deleteError.message,
+        locationId,
+        count: eventCount,
+      });
+      return 0;
+    }
+
+    logger.info(
+      `Successfully deleted ${eventCount} old events for location ${locationId} (date < ${cutoffDate})`
+    );
+    return eventCount;
+  } catch (error) {
+    logger.error("Cleanup old events failed", {
+      error: error instanceof Error ? error.message : String(error),
+      locationId,
+    });
+    return 0; // Don't throw - cleanup failure shouldn't break the entire job
+  }
+};
+
+/**
+ * Clean up orphaned venues and artists with no associated events.
+ * Runs globally across all locations.
+ * Only executes if old events were actually deleted to improve performance.
+ *
+ * @param deletedEventCount - Number of events that were deleted
+ */
+const cleanupOrphanedRecords = async (
+  deletedEventCount: number
+): Promise<void> => {
+  // Skip if no events were deleted (optimization)
+  if (deletedEventCount === 0) {
+    logger.debug("Skipping orphaned cleanup - no events were deleted");
+    return;
+  }
+
+  try {
+    // Clean up orphaned venues (venues with no events)
+    const { data: venuesToDelete } = await supabase
+      .from("prtnr_venues")
+      .select("id")
+      .not(
+        "id",
+        "in",
+        `(SELECT DISTINCT venue_id FROM prtnr_events WHERE venue_id IS NOT NULL)`
+      );
+
+    if (venuesToDelete && venuesToDelete.length > 0) {
+      const venueIds = venuesToDelete.map((v) => v.id);
+      await supabase.from("prtnr_venues").delete().in("id", venueIds);
+      logger.info(`Deleted ${venueIds.length} orphaned venues`);
+    } else {
+      logger.debug("No orphaned venues to clean up");
+    }
+
+    // Clean up orphaned artists (artists with no event associations)
+    const { data: artistsToDelete } = await supabase
+      .from("prtnr_artists")
+      .select("id")
+      .not(
+        "id",
+        "in",
+        `(SELECT DISTINCT artist_id FROM prtnr_event_artists WHERE artist_id IS NOT NULL)`
+      );
+
+    if (artistsToDelete && artistsToDelete.length > 0) {
+      const artistIds = artistsToDelete.map((a) => a.id);
+      await supabase.from("prtnr_artists").delete().in("id", artistIds);
+      logger.info(`Deleted ${artistIds.length} orphaned artists`);
+    } else {
+      logger.debug("No orphaned artists to clean up");
+    }
+  } catch (error) {
+    logger.error("Cleanup orphaned records failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    // Don't throw - cleanup failure shouldn't break the entire job
+  }
+};
 
 export const execute = async (
   cityId: number,
@@ -41,6 +174,12 @@ export const execute = async (
     // Process Ticketmaster first to ensure genres are created, then EDM Train
     await processSourceUpdate(results[0], "ticketmaster", cityId, cityName);
     await processSourceUpdate(results[1], "edmtrain", cityId, cityName);
+
+    // Cleanup old events and get count of deleted events
+    const deletedCount = await cleanupOldEvents(cityId);
+
+    // Only run orphaned cleanup if events were actually deleted (optimization)
+    await cleanupOrphanedRecords(deletedCount);
 
     await cacheControl.updateCacheTimestamp(cityId);
     logger.info(`Completed data fetch for ${cityName} (ID: ${cityId})`);
