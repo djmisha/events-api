@@ -1,0 +1,92 @@
+[
+  {
+    "name": "Deadmau5",
+    "slug": "deadmau5",
+    "image": "https://example.com/artists/deadmau5.jpg",
+    "tags": ["house", "progressive-house", "electro-house"],
+    "ticketmaster_id": "K8vZ917Gku7",
+    "edmtrain_id": 1001,
+    "bio": "Joel Thomas Zimmerman, known professionally as Deadmau5, is a Canadian electronic music producer and DJ."
+  },
+  {
+    "name": "Tiësto",
+    "slug": "tiesto",
+    "image": "https://example.com/artists/tiesto.jpg",
+    "tags": ["trance", "edm", "big-room"],
+    "ticketmaster_id": "K8vZ917_n17",
+    "edmtrain_id": 1002,
+    "bio": "Tijs Michiel Verwest, known professionally as Tiësto, is a Dutch DJ and record producer."
+  },
+  {
+    "name": "Skrillex",
+    "slug": "skrillex",
+    "image": "https://example.com/artists/skrillex.jpg",
+    "tags": ["dubstep", "bass", "edm"],
+    "ticketmaster_id": "K8vZ917ueo7",
+    "edmtrain_id": 1003,
+    "bio": "Sonny John Moore, known professionally as Skrillex, is an American DJ, record producer, and singer."
+  },
+  {
+    "name": "Calvin Harris",
+    "slug": "calvin-harris",
+    "image": "https://example.com/artists/calvin-harris.jpg",
+    "tags": ["house", "edm", "pop"],
+    "ticketmaster_id": "K8vZ917paG7",
+    "edmtrain_id": 1004,
+    "bio": "Adam Richard Wiles, known professionally as Calvin Harris, is a Scottish DJ, record producer, singer, and songwriter."
+  },
+  {
+    "name": "Martin Garrix",
+    "slug": "martin-garrix",
+    "image": "https://example.com/artists/martin-garrix.jpg",
+    "tags": ["progressive-house", "big-room", "future-bass"],
+    "ticketmaster_id": "K8vZ917_6C7",
+    "edmtrain_id": 1005,
+    "bio": "Martijn Gerard Garritsen, known professionally as Martin Garrix, is a Dutch DJ and record producer."
+  },
+  {
+    "name": "Diplo",
+    "slug": "diplo",
+    "image": "https://example.com/artists/diplo.jpg",
+    "tags": ["trap", "bass", "dancehall"],
+    "ticketmaster_id": "K8vZ917_7f0",
+    "edmtrain_id": 1006,
+    "bio": "Thomas Wesley Pentz, known professionally as Diplo, is an American DJ and record producer."
+  },
+  {
+    "name": "Marshmello",
+    "slug": "marshmello",
+    "image": "https://example.com/artists/marshmello.jpg",
+    "tags": ["future-bass", "trap", "edm"],
+    "ticketmaster_id": "K8vZ9171nV0",
+    "edmtrain_id": 1007,
+    "bio": "Christopher Comstock, known professionally as Marshmello, is an American electronic music producer and DJ."
+  },
+  {
+    "name": "Zedd",
+    "slug": "zedd",
+    "image": "https://example.com/artists/zedd.jpg",
+    "tags": ["electro-house", "progressive-house", "pop"],
+    "ticketmaster_id": "K8vZ917_ev7",
+    "edmtrain_id": 1008,
+    "bio": "Anton Zaslavski, known professionally as Zedd, is a Russian-German DJ, record producer, and songwriter."
+  },
+  {
+    "name": "Illenium",
+    "slug": "illenium",
+    "image": "https://example.com/artists/illenium.jpg",
+    "tags": ["melodic-dubstep", "future-bass", "emotional"],
+    "ticketmaster_id": "K8vZ917_1_0",
+    "edmtrain_id": 1009,
+    "bio": "Nicholas D. Miller, known professionally as Illenium, is an American DJ, record producer, and songwriter."
+  },
+  {
+    "name": "ODESZA",
+    "slug": "odesza",
+    "image": "https://example.com/artists/odesza.jpg",
+    "tags": ["future-bass", "electronic", "indie-electronic"],
+    "ticketmaster_id": "K8vZ917pzT7",
+    "edmtrain_id": 1010,
+    "bio": "Odesza is an American electronic music duo from Seattle, Washington, consisting of Harrison Mills and Clayton Knight."
+  }
+]

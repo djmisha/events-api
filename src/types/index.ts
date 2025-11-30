@@ -161,3 +161,56 @@ export interface BatchUpsertResult {
   success: number;
   failed: number;
 }
+
+// Artist types
+export interface Artist {
+  id: string; // UUID
+  name: string;
+  slug: string;
+  image: string | null;
+  tags: string[]; // JSONB array of tags
+  ticketmaster_id: string | null;
+  edmtrain_id: number | null;
+  bio: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+// Artist input for creating/updating
+export interface ArtistInput {
+  name: string;
+  slug?: string;
+  image?: string | null;
+  tags?: string[];
+  ticketmaster_id?: string | null;
+  edmtrain_id?: number | null;
+  bio?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
+// Artist from seed data (artistDB.json format)
+export interface ArtistSeedData {
+  name: string;
+  slug?: string;
+  image?: string;
+  tags?: string[];
+  ticketmaster_id?: string;
+  edmtrain_id?: number;
+  bio?: string;
+}
+
+// Artist sync result
+export interface ArtistSyncResult {
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: number;
+}
+
+// API response for artist queries
+export interface ArtistApiResponse {
+  data: Artist | Artist[] | null;
+  count: number;
+  message?: string;
+}

@@ -7,6 +7,7 @@ import healthRouter from "./api/health";
 import testRouter from "./api/test";
 import webhookRouter from "./api/webhook";
 import genresRouter from "./api/genres";
+import artistsRouter from "./api/artists";
 import logger from "./services/logger";
 import apiKeyAuth from "./middleware/apiKeyAuth";
 
@@ -30,6 +31,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 // Protected API Routes (require API key)
 app.use("/api/v1/events", apiKeyAuth, eventsRouter);
+app.use("/api/v1/artists", apiKeyAuth, artistsRouter);
 app.use("/api/genres", apiKeyAuth, genresRouter);
 
 // Webhook routes (use their own WEBHOOK_SECRET authentication)
@@ -56,11 +58,23 @@ app.get("/", (req: Request, res: Response) => {
       authentication: "API Key required",
       example: "/api/v1/events/71/chicago",
     },
+    artists: {
+      path: "/api/v1/artists",
+      authentication: "API Key required",
+      examples: [
+        "/api/v1/artists - List all artists (paginated)",
+        "/api/v1/artists/search?q=deadmau5 - Search by name",
+        "/api/v1/artists/:id - Get by UUID, slug, or external ID",
+      ],
+    },
     webhook: {
       path: "/api/webhook/fetch-partner-data",
       authentication: "WEBHOOK_SECRET required",
       method: "POST",
       note: "For background processing only",
+      additionalEndpoints: [
+        "/api/webhook/sync-artists - Sync artists from events",
+      ],
     },
     health: {
       path: "/health",

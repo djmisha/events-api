@@ -1,5 +1,6 @@
 import express, { Request, Response } from "express";
 import { execute as fetchPartnerData } from "../jobs/fetchPartnerData";
+import { execute as syncArtists } from "../jobs/syncArtists";
 import logger from "../services/logger";
 
 const router = express.Router();
@@ -97,6 +98,61 @@ router.get("/health", (req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || "development",
   });
+});
+
+/**
+ * Webhook endpoint for syncing artists from partner table
+ * Used to populate the master artists table with new artists from events
+ */
+router.post("/sync-artists", async (req: Request, res: Response) => {
+  try {
+    // Basic authentication check
+    const authHeader = req.headers.authorization;
+    const expectedSecret = process.env.WEBHOOK_SECRET || "dev-secret";
+
+    if (!authHeader || authHeader !== `Bearer ${expectedSecret}`) {
+      logger.warn("Unauthorized webhook request to sync-artists", {
+        ip: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "Invalid webhook secret",
+      });
+    }
+
+    logger.info("Webhook executing artist sync job");
+
+    // Execute the artist sync
+    const startTime = Date.now();
+    const result = await syncArtists();
+    const duration = Date.now() - startTime;
+
+    logger.info("Webhook artist sync completed successfully", {
+      ...result,
+      duration: `${duration}ms`,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Artist sync completed successfully",
+      result,
+      duration: `${duration}ms`,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    logger.error("Webhook sync-artists error:", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+
+    return res.status(500).json({
+      success: false,
+      error: "Artist sync failed",
+      message: error instanceof Error ? error.message : "Unknown error",
+      timestamp: new Date().toISOString(),
+    });
+  }
 });
 
 export default router;
