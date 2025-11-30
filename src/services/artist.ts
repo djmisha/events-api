@@ -359,9 +359,11 @@ export async function syncArtistsFromPartnerTable(): Promise<ArtistSyncResult> {
       return result;
     }
 
-    logger.info(`Syncing ${partnerArtists.length} artists from partner table`);
+    logger.info(
+      `Synchronizing ${partnerArtists.length} artists from partner table`
+    );
 
-    // Process each artist using Promise.allSettled for better performance
+    // Process each artist using Promise.allSettled with batching
     const processArtist = async (partnerArtist: {
       external_id?: string;
       name: string;
@@ -370,22 +372,33 @@ export async function syncArtistsFromPartnerTable(): Promise<ArtistSyncResult> {
       try {
         // Parse external ID from the external_id field (format: "source:id")
         const externalIdParts = partnerArtist.external_id?.split(":") || [];
-        const source = externalIdParts[0] as "edmtrain" | "ticketmaster";
+        const rawSource = externalIdParts[0];
         const externalId = externalIdParts[1];
+
+        // Validate source before type assertion
+        const validSources = ["edmtrain", "ticketmaster"];
+        const source: "edmtrain" | "ticketmaster" = validSources.includes(
+          rawSource
+        )
+          ? (rawSource as "edmtrain" | "ticketmaster")
+          : "edmtrain";
 
         const input: ArtistInput = {
           name: partnerArtist.name,
           metadata: partnerArtist.metadata || {},
         };
 
-        // Set external ID based on source
+        // Set external ID based on source with proper validation
         if (source === "edmtrain" && externalId) {
-          input.edmtrain_id = parseInt(externalId, 10);
+          const parsedId = Number(externalId);
+          if (!Number.isNaN(parsedId) && Number.isInteger(parsedId)) {
+            input.edmtrain_id = parsedId;
+          }
         } else if (source === "ticketmaster" && externalId) {
           input.ticketmaster_id = externalId;
         }
 
-        const { action } = await upsertArtist(input, source || "edmtrain");
+        const { action } = await upsertArtist(input, source);
         return action;
       } catch (artistError) {
         logger.error("Error syncing individual artist:", {
@@ -396,11 +409,24 @@ export async function syncArtistsFromPartnerTable(): Promise<ArtistSyncResult> {
       }
     };
 
-    // Process artists sequentially to avoid overwhelming the database
-    const results = await Promise.all(partnerArtists.map(processArtist));
+    // Process artists in batches to avoid overwhelming the database
+    const BATCH_SIZE = 10;
+    const artistBatches: (typeof partnerArtists)[] = [];
+    const artistArray = [...partnerArtists];
+    while (artistArray.length > 0) {
+      artistBatches.push(artistArray.splice(0, BATCH_SIZE));
+    }
+
+    // Process batches sequentially, artists within batch in parallel
+    const allResults: Array<"created" | "updated" | "skipped" | "error"> = [];
+    await artistBatches.reduce(async (prevPromise, batch) => {
+      await prevPromise;
+      const batchResults = await Promise.all(batch.map(processArtist));
+      allResults.push(...batchResults);
+    }, Promise.resolve());
 
     // Count results
-    results.forEach((action) => {
+    allResults.forEach((action) => {
       if (action === "created") {
         result.created += 1;
       } else if (action === "updated") {
