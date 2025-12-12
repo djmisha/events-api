@@ -22,10 +22,8 @@ const extractTimeFromTimestamp = (timeValue: string | null): string | null => {
     // If it's already a time string (HH:MM:SS format), return as-is
     // Validate it matches time format
     if (/^\d{2}:\d{2}(:\d{2})?$/.test(timeValue)) {
-      // Add seconds if not present
-      return timeValue.includes(":") && timeValue.split(":").length === 2
-        ? `${timeValue}:00`
-        : timeValue;
+      // Add seconds if not present (HH:MM → HH:MM:00)
+      return timeValue.split(":").length === 2 ? `${timeValue}:00` : timeValue;
     }
 
     // Invalid format
