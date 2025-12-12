@@ -171,40 +171,6 @@ Artists are automatically synchronized to the master `artists` table during the 
 - No separate webhook call needed
 - Artists are immediately available after events are fetched
 
-## Seed Script
-
-### Purpose
-
-The seed script populates the artists table from a local JSON file (`data/artistDB.json`).
-
-### Usage
-
-```bash
-# Using npm script
-npm run seed:artists
-
-# Or directly with ts-node
-npx ts-node scripts/seedArtists.ts
-```
-
-### Seed Data Format
-
-The `data/artistDB.json` file should contain an array of artist objects:
-
-```json
-[
-  {
-    "name": "Deadmau5",
-    "slug": "deadmau5",
-    "image": "https://example.com/deadmau5.jpg",
-    "tags": ["house", "progressive-house"],
-    "ticketmaster_id": "K8vZ917Gku7",
-    "edmtrain_id": 1001,
-    "bio": "Canadian electronic music producer..."
-  }
-]
-```
-
 ## Data Flow
 
 ```
@@ -280,24 +246,11 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_KEY=your-service-key
 ```
 
-### NPM Scripts
-
-The following npm script is available in `package.json`:
-
-```json
-{
-  "scripts": {
-    "seed:artists": "ts-node scripts/seedArtists.ts"
-  }
-}
-```
-
 ## Best Practices
 
 1. **Automatic Sync**: Artists are automatically synced during partner data fetch - no manual intervention needed
-2. **Seed First**: Run the seed script before the first sync to pre-populate with known artists
-3. **Use External IDs**: Always use external IDs (edmtrain_id, ticketmaster_id) when available for reliable matching
-4. **Monitor Sync Results**: Check the sync results for errors to identify data quality issues
+2. **Use External IDs**: Always use external IDs (edmtrain_id, ticketmaster_id) when available for reliable matching
+3. **Monitor Sync Results**: Check the sync results for errors to identify data quality issues
 
 ## Error Handling
 
