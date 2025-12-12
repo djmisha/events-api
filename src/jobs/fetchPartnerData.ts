@@ -2,12 +2,13 @@
  * Partner Data Fetch Job
  *
  * Fetches events from EDM Train and Ticketmaster APIs, transforms them,
- * stores in normalized database schema, assigns genres, and cleans up old data.
+ * stores in normalized database schema, syncs artists, assigns genres, and cleans up old data.
  *
  * Features:
  * - Fetches only Music events from Ticketmaster (segmentId filter)
  * - Uses normalized schema (prtnr_events, prtnr_venues, prtnr_artists, prtnr_event_artists)
  * - Batch upserts for optimal performance (venues, artists, events, genres)
+ * - Automatic artist sync to master artists table (integrated)
  * - Automatic genre assignment based on API classifications
  * - Creates missing genres on-the-fly from Ticketmaster data
  * - Automatic cleanup of events older than 3 days
@@ -15,9 +16,10 @@
  *
  * Database Operations per Webhook:
  * - Upsert venues, artists, events (batch operations)
+ * - Sync artists to master table (batch operations, 10 at a time)
  * - Fetch/create genres and assign to events (2-3 queries total)
  * - Delete old events and orphaned records (2-4 queries total)
- * - Total: ~7-10 queries for 100+ events
+ * - Total: ~10-15 queries for 100+ events
  */
 
 import edmTrainService from "../services/edmTrain";
@@ -26,6 +28,7 @@ import supabase from "../services/supabaseClient";
 import cacheControl from "../services/cacheControl";
 import transform from "../utils/transform";
 import logger from "../services/logger";
+import artistService from "../services/artist";
 import { PartnerEvent } from "../types";
 import { upsertEventsWithRelations } from "../services/normalizedDataBatch";
 
@@ -254,7 +257,57 @@ const processSourceUpdate = async (
     `Successfully upserted ${upsertResult.success} ${source} events for ${cityName} (ID: ${cityId})`
   );
 
+  // Sync artists to master artists table from the events just processed
+  await syncArtistsToMasterTable(transformedEvents, source);
+
   await assignGenresToEvents(transformedEvents, source);
+};
+
+/**
+ * Sync artists from processed events to the master artists table
+ * Extracts unique artists from events and syncs them to the artists table
+ */
+const syncArtistsToMasterTable = async (
+  events: PartnerEvent[],
+  source: "edmtrain" | "ticketmaster"
+): Promise<void> => {
+  try {
+    // Extract unique artists from all events with their external IDs
+    const artistsMap = new Map<string, { external_id: string; name: string }>();
+
+    events.forEach((event) => {
+      event.artistlist?.forEach((artist) => {
+        if (artist?.id && artist?.name) {
+          // Create external_id in the format "source:id"
+          const externalId = `${source}:${artist.id}`;
+          if (!artistsMap.has(externalId)) {
+            artistsMap.set(externalId, {
+              external_id: externalId,
+              name: artist.name,
+            });
+          }
+        }
+      });
+    });
+
+    const uniqueArtists = Array.from(artistsMap.values());
+
+    if (uniqueArtists.length === 0) {
+      logger.info(`No artists to sync for ${source} events`);
+      return;
+    }
+
+    // Sync artists to master table
+    const syncResult = await artistService.syncArtistsFromEvents(
+      uniqueArtists,
+      source
+    );
+
+    logger.info(`Artist sync result for ${source}:`, syncResult);
+  } catch (error) {
+    logger.error(`Failed to sync artists for ${source}:`, error);
+    // Don't throw - artist sync failure shouldn't break the entire job
+  }
 };
 
 const assignGenresToEvents = async (

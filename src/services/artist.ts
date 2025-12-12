@@ -332,8 +332,113 @@ export async function upsertArtist(
 }
 
 /**
+ * Sync artists from event data to the master artists table
+ * This is called during partner data fetch to sync only the artists from current events
+ *
+ * @param artists - Array of artist objects from events (with external_id in "source:id" format)
+ * @param source - The data source ("edmtrain" or "ticketmaster")
+ */
+export async function syncArtistsFromEvents(
+  artists: Array<{ external_id: string; name: string }>,
+  source: "edmtrain" | "ticketmaster"
+): Promise<ArtistSyncResult> {
+  const result: ArtistSyncResult = {
+    created: 0,
+    updated: 0,
+    skipped: 0,
+    errors: 0,
+  };
+
+  if (!artists || artists.length === 0) {
+    return result;
+  }
+
+  logger.info(
+    `Synchronizing ${artists.length} artists from ${source} events to master artists table`
+  );
+
+  // Process each artist with batching
+  const processArtist = async (artist: {
+    external_id: string;
+    name: string;
+  }): Promise<"created" | "updated" | "skipped" | "error"> => {
+    try {
+      // Parse external ID from the external_id field (format: "source:id")
+      const externalIdParts = artist.external_id?.split(":") || [];
+      const rawSource = externalIdParts[0];
+      const externalId = externalIdParts[1];
+
+      // Validate source before type assertion
+      const validSources = ["edmtrain", "ticketmaster"];
+      const artistSource: "edmtrain" | "ticketmaster" = validSources.includes(
+        rawSource
+      )
+        ? (rawSource as "edmtrain" | "ticketmaster")
+        : source; // Fallback to provided source
+
+      const input: ArtistInput = {
+        name: artist.name,
+        metadata: { source: artistSource },
+      };
+
+      // Set external ID based on source with proper validation
+      if (artistSource === "edmtrain" && externalId) {
+        const parsedId = Number(externalId);
+        if (!Number.isNaN(parsedId) && Number.isInteger(parsedId)) {
+          input.edmtrain_id = parsedId;
+        }
+      } else if (artistSource === "ticketmaster" && externalId) {
+        input.ticketmaster_id = externalId;
+      }
+
+      const { action } = await upsertArtist(input, artistSource);
+      return action;
+    } catch (artistError) {
+      logger.error("Error syncing individual artist:", {
+        artist: artist.name,
+        error: artistError,
+      });
+      return "error";
+    }
+  };
+
+  // Process artists in batches to avoid overwhelming the database
+  const BATCH_SIZE = 10;
+  const artistBatches: (typeof artists)[] = [];
+  const artistArray = [...artists];
+  while (artistArray.length > 0) {
+    artistBatches.push(artistArray.splice(0, BATCH_SIZE));
+  }
+
+  // Process batches sequentially, artists within batch in parallel
+  const allResults: Array<"created" | "updated" | "skipped" | "error"> = [];
+  await artistBatches.reduce(async (prevPromise, batch) => {
+    await prevPromise;
+    const batchResults = await Promise.all(batch.map(processArtist));
+    allResults.push(...batchResults);
+  }, Promise.resolve());
+
+  // Count results
+  allResults.forEach((action) => {
+    if (action === "created") {
+      result.created += 1;
+    } else if (action === "updated") {
+      result.updated += 1;
+    } else if (action === "skipped") {
+      result.skipped += 1;
+    } else {
+      result.errors += 1;
+    }
+  });
+
+  logger.info("Artist sync from events completed:", result);
+  return result;
+}
+
+/**
  * Sync artists from prtnr_artists table
  * This is used by the background job to populate the artists table
+ * @deprecated Use syncArtistsFromEvents instead for better performance
  */
 export async function syncArtistsFromPartnerTable(): Promise<ArtistSyncResult> {
   const result: ArtistSyncResult = {
@@ -456,5 +561,6 @@ export default {
   createArtist,
   updateArtist,
   upsertArtist,
+  syncArtistsFromEvents,
   syncArtistsFromPartnerTable,
 };

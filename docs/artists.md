@@ -153,9 +153,27 @@ The identifier can be:
 
 ## Background Jobs
 
-### Artist Sync Job
+### Automatic Artist Sync (Integrated with Partner Data Fetch)
 
-The sync job automatically populates the artists table from the `prtnr_artists` table (which contains artists from partner events).
+Artists are automatically synchronized to the master `artists` table during the partner data fetch process. This happens immediately after events are fetched and stored, ensuring the artist database stays up-to-date with minimal overhead.
+
+**How it works:**
+- Runs automatically as part of `/api/webhook/fetch-partner-data`
+- Syncs only the artists from the events just processed (not all artists)
+- Processes in small batches to avoid database saturation
+- Matches by external ID or name to prevent duplicates
+- Updates existing artists with new data if available
+- Never deletes existing artist records
+
+**Benefits:**
+- Much smaller dataset per sync (only artists from current events)
+- More efficient database operations
+- No separate webhook call needed
+- Artists are immediately available after events are fetched
+
+### Manual Artist Sync (Legacy)
+
+For backward compatibility, a manual sync endpoint is still available:
 
 **Webhook Endpoint:**
 ```
@@ -163,11 +181,7 @@ POST /api/webhook/sync-artists
 Authorization: Bearer YOUR_WEBHOOK_SECRET
 ```
 
-**Features:**
-- Processes all artists from partner events
-- Matches by external ID or name to prevent duplicates
-- Updates existing artists with new data if available
-- Never deletes existing artist records
+**Note:** This endpoint syncs all artists from the `prtnr_artists` table and is less efficient than the automatic sync. It's recommended to rely on the automatic sync during partner data fetch instead.
 
 **Response:**
 ```json
@@ -226,21 +240,28 @@ The `data/artistDB.json` file should contain an array of artist objects:
 │     API         │    │      API        │
 └────────┬────────┘    └────────┬────────┘
          │                      │
+         │  Partner Data Fetch  │
+         │  (fetchPartnerData)  │
          ▼                      ▼
 ┌─────────────────────────────────────────┐
-│         prtnr_event_artists             │
-│    (Partner Event Artists Table)        │
+│     Normalized Event Processing         │
+│  - Transform events                     │
+│  - Upsert to prtnr_events               │
+│  - Upsert to prtnr_venues               │
+│  - Upsert to prtnr_artists              │
 └────────────────────┬────────────────────┘
                      │
-                     │ Background Sync Job
-                     │ (Webhook: sync-artists)
+                     │ Automatic Artist Sync
+                     │ (syncArtistsFromEvents)
+                     │ ← Integrated in same job
                      ▼
 ┌─────────────────────────────────────────┐
 │              artists                    │
 │      (Master Artists Table)             │
-│  - Deduplication                        │
-│  - Data Enrichment                      │
-│  - Append-only                          │
+│  - Deduplication by external ID         │
+│  - Data Enrichment (fill missing)       │
+│  - Append-only (never delete)           │
+│  - Batch processing (10 at a time)      │
 └────────────────────┬────────────────────┘
                      │
                      ▼
@@ -249,6 +270,12 @@ The `data/artistDB.json` file should contain an array of artist objects:
 │      (Artist API Endpoint)              │
 └─────────────────────────────────────────┘
 ```
+
+**Key Points:**
+- Artists are synced **during** partner data fetch, not as a separate job
+- Only artists from the current batch of events are processed
+- Much smaller dataset per sync operation
+- More efficient and scalable approach
 
 ## Deduplication Logic
 
