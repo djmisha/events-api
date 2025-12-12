@@ -3,6 +3,42 @@ import logger from "../services/logger";
 import { PartnerEvent } from "../types";
 
 /**
+ * Extracts time portion from an ISO 8601 timestamp or time string.
+ * Handles both full timestamps (2025-12-18T21:30:00Z) and time-only strings (21:30:00).
+ * @param timeValue - ISO 8601 timestamp or time string
+ * @returns Time in HH:MM:SS format, or null if invalid
+ */
+const extractTimeFromTimestamp = (timeValue: string | null): string | null => {
+  if (!timeValue) return null;
+
+  try {
+    // If it contains 'T', it's an ISO 8601 timestamp - extract time portion
+    if (timeValue.includes("T")) {
+      const timePart = timeValue.split("T")[1];
+      // Remove timezone indicator (Z or +00:00) and milliseconds
+      return timePart.split(/[Z+-]/)[0].split(".")[0];
+    }
+
+    // If it's already a time string (HH:MM:SS format), return as-is
+    // Validate it matches time format
+    if (/^\d{2}:\d{2}(:\d{2})?$/.test(timeValue)) {
+      // Add seconds if not present (HH:MM → HH:MM:00)
+      return timeValue.split(":").length === 2 ? `${timeValue}:00` : timeValue;
+    }
+
+    // Invalid format
+    logger.warn("Invalid time format received", { timeValue });
+    return null;
+  } catch (error) {
+    logger.error("Error extracting time from timestamp", {
+      timeValue,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+};
+
+/**
  * Normalizes an array of EDM Train events into PartnerEvent objects, filtering for electronic music
  * and handling errors.
  * @param events - The raw array of EDM Train event data.
@@ -44,8 +80,8 @@ const normalizeEdmTrainEvents = (
           },
           location_id: cityId,
           date: event.date || new Date().toISOString().split("T")[0],
-          starttime: event.startTime || null,
-          endtime: event.endTime || null,
+          starttime: extractTimeFromTimestamp(event.startTime),
+          endtime: extractTimeFromTimestamp(event.endTime),
           link: event.link || null,
           image: generateEDMtrainImageURL(event),
           ages: event.ages || null,
@@ -114,7 +150,7 @@ const normalizeTicketmasterEvents = (
           date:
             event.dates?.start?.localDate ||
             new Date().toISOString().split("T")[0],
-          starttime: event.dates?.start?.localTime || null,
+          starttime: extractTimeFromTimestamp(event.dates?.start?.localTime),
           endtime: null,
           link: event.url?.replace("sandiegohousemusic", "5926009") || null,
           image: generateTicketmasterImageURL(event),
@@ -213,4 +249,5 @@ export default {
   normalizeEdmTrainEvents,
   normalizeTicketmasterEvents,
   generateNumericIdFromString,
+  extractTimeFromTimestamp,
 };
