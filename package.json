@@ -9,7 +9,6 @@
     "build": "tsc",
     "cleanup": "ts-node -e \"require('./src/jobs/cleanup').execute()\"",
     "seed:artists": "ts-node scripts/seedArtists.ts",
-    "sync:artists": "ts-node -e \"require('./src/jobs/syncArtists').execute()\"",
     "vercel-build": "tsc",
     "lint": "./scripts/pre-commit.sh",
     "test": "echo \"Error: no test specified\" && exit 1",

@@ -71,10 +71,7 @@ app.get("/", (req: Request, res: Response) => {
       path: "/api/webhook/fetch-partner-data",
       authentication: "WEBHOOK_SECRET required",
       method: "POST",
-      note: "For background processing only",
-      additionalEndpoints: [
-        "/api/webhook/sync-artists - Sync artists from events",
-      ],
+      note: "For background processing - includes automatic artist sync",
     },
     health: {
       path: "/health",

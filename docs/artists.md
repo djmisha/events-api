@@ -171,33 +171,6 @@ Artists are automatically synchronized to the master `artists` table during the 
 - No separate webhook call needed
 - Artists are immediately available after events are fetched
 
-### Manual Artist Sync (Legacy)
-
-For backward compatibility, a manual sync endpoint is still available:
-
-**Webhook Endpoint:**
-```
-POST /api/webhook/sync-artists
-Authorization: Bearer YOUR_WEBHOOK_SECRET
-```
-
-**Note:** This endpoint syncs all artists from the `prtnr_artists` table and is less efficient than the automatic sync. It's recommended to rely on the automatic sync during partner data fetch instead.
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Artist sync completed successfully",
-  "result": {
-    "created": 50,
-    "updated": 10,
-    "skipped": 100,
-    "errors": 0
-  },
-  "duration": "1234ms"
-}
-```
-
 ## Seed Script
 
 ### Purpose
@@ -309,20 +282,19 @@ SUPABASE_SERVICE_KEY=your-service-key
 
 ### NPM Scripts
 
-Add the following to `package.json`:
+The following npm script is available in `package.json`:
 
 ```json
 {
   "scripts": {
-    "seed:artists": "ts-node scripts/seedArtists.ts",
-    "sync:artists": "ts-node -e \"require('./src/jobs/syncArtists').execute()\""
+    "seed:artists": "ts-node scripts/seedArtists.ts"
   }
 }
 ```
 
 ## Best Practices
 
-1. **Run Sync After Event Fetches**: Trigger the artist sync job after fetching new events to capture new artists
+1. **Automatic Sync**: Artists are automatically synced during partner data fetch - no manual intervention needed
 2. **Seed First**: Run the seed script before the first sync to pre-populate with known artists
 3. **Use External IDs**: Always use external IDs (edmtrain_id, ticketmaster_id) when available for reliable matching
 4. **Monitor Sync Results**: Check the sync results for errors to identify data quality issues
