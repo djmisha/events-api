@@ -303,6 +303,18 @@ const syncArtistsToMasterTable = async (
         ? new Set(limitToExternalIds)
         : null;
 
+    // Explicitly handle the case where limitToExternalIds is provided but empty
+    if (Array.isArray(limitToExternalIds) && limitToExternalIds.length === 0) {
+      logger.debug(
+        {
+          source,
+          uniqueArtistsInEvents: uniqueArtists.length,
+          newlyInsertedPartnerArtists: 0,
+        },
+        "Skipping master artist sync (limitToExternalIds is empty, no new partner artists)"
+      );
+      return;
+    }
     const artistsToSync = allowedExternalIds
       ? uniqueArtists.filter((a) => allowedExternalIds.has(a.external_id))
       : uniqueArtists;
