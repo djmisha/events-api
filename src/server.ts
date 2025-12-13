@@ -29,6 +29,15 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
+// Favicon handling to prevent unhandled requests
+app.get("/favicon.ico", (req: Request, res: Response) => {
+  res.status(204).end(); // No Content - browsers will use default favicon
+});
+
+app.get("/favicon.png", (req: Request, res: Response) => {
+  res.status(204).end(); // Same for PNG variant
+});
+
 // Protected API Routes (require API key)
 app.use("/api/v1/events", apiKeyAuth, eventsRouter);
 app.use("/api/v1/artists", apiKeyAuth, artistsRouter);
