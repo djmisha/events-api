@@ -160,7 +160,7 @@ Artists are automatically synchronized to the master `artists` table during the 
 **How it works:**
 - Runs automatically as part of `/api/webhook/fetch-partner-data`
 - Syncs only the artists from the events just processed (not all artists)
-- Processes in small batches to avoid database saturation
+- Processes all relevant artists in a single database operation
 - Matches by external ID or name to prevent duplicates
 - Updates existing artists with new data if available
 - Never deletes existing artist records
