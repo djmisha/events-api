@@ -60,7 +60,8 @@ router.get("/:id/:city", async (req: Request, res: Response) => {
             ticketmaster_genre_id
           )
         ),
-        prtnr_event_artists (
+        prtnr_event_artists!inner (
+          display_order,
           prtnr_artists (
             id,
             name
@@ -113,8 +114,9 @@ router.get("/:id/:city", async (req: Request, res: Response) => {
             }
           : undefined;
 
-        // Transform artistlist from joined data
+        // Transform artistlist from joined data, sorted by display_order
         const artistlist = (event.prtnr_event_artists || [])
+          .sort((a: any, b: any) => (a.display_order ?? 0) - (b.display_order ?? 0))
           .map((ea: any) => ea.prtnr_artists)
           .filter(Boolean)
           .map((artist: any) => ({
