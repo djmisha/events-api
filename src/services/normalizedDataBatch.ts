@@ -172,8 +172,10 @@ async function batchUpsertVenues(
 async function batchUpsertArtists(
   artists: NormalizedArtist[],
   source: string
-): Promise<Map<string, string>> {
-  if (!artists || artists.length === 0) return new Map();
+): Promise<{ idMap: Map<string, string>; newExternalIds: string[] }> {
+  if (!artists || artists.length === 0) {
+    return { idMap: new Map(), newExternalIds: [] };
+  }
 
   // Transform artists into database format with external IDs
   const artistRecords = artists.map((a) => ({
@@ -198,6 +200,10 @@ async function batchUpsertArtists(
   const newArtists = artistRecords.filter(
     (a) => !existingMap.has(a.external_id as string)
   );
+
+  const newExternalIds = newArtists
+    .map((a) => a.external_id)
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
 
   // Only insert artists that don't already exist
   if (newArtists.length > 0) {
@@ -229,7 +235,7 @@ async function batchUpsertArtists(
     }
   }
 
-  return existingMap;
+  return { idMap: existingMap, newExternalIds };
 }
 
 /**
@@ -278,7 +284,11 @@ async function upsertEventsWithRelations(
   source: string
 ): Promise<BatchUpsertResult> {
   if (!Array.isArray(events) || events.length === 0) {
-    return { success: 0, failed: events.length };
+    return {
+      success: 0,
+      failed: events.length,
+      newPartnerArtistExternalIds: [],
+    };
   }
 
   // Step 1: Extract and deduplicate venues and artists across all events
@@ -312,10 +322,8 @@ async function upsertEventsWithRelations(
     Array.from(uniqueVenues.values()),
     source
   );
-  const artistIdMap = await batchUpsertArtists(
-    Array.from(uniqueArtists.values()),
-    source
-  );
+  const { idMap: artistIdMap, newExternalIds: newPartnerArtistExternalIds } =
+    await batchUpsertArtists(Array.from(uniqueArtists.values()), source);
 
   // Step 3: Prepare event records and artist relationships
   const eventDataList: any[] = [];
@@ -381,7 +389,7 @@ async function upsertEventsWithRelations(
       code: eventsError.code,
       count: eventDataList.length,
     });
-    return { success: 0, failed: events.length };
+    return { success: 0, failed: events.length, newPartnerArtistExternalIds };
   }
 
   // Step 5: Delete old event-artist relationships
@@ -405,7 +413,7 @@ async function upsertEventsWithRelations(
     }
   }
 
-  return { success: events.length, failed: 0 };
+  return { success: events.length, failed: 0, newPartnerArtistExternalIds };
 }
 
 /**

@@ -12,19 +12,33 @@
 
 import express, { Request, Response } from "express";
 import logger from "../services/logger";
-import artistService from "../services/artist";
+import * as artistService from "../services/artist";
 import { ArtistApiResponse } from "../types";
 
 const router = express.Router();
 
+// API pagination and search limits
+const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_LIMIT = 50;
+const MAX_PAGE_LIMIT = 100;
+const DEFAULT_SEARCH_LIMIT = 10;
+const MAX_SEARCH_LIMIT = 50;
+
 /**
  * GET /api/v1/artists
  * List all artists with pagination
+ *
+ * Query params:
+ *   - page: Page number (1-indexed, default: 1)
+ *   - limit: Results per page (default: 50, max: 100)
  */
 router.get("/", async (req: Request, res: Response) => {
   try {
-    const page = parseInt(req.query.page as string, 10) || 1;
-    const limit = Math.min(parseInt(req.query.limit as string, 10) || 50, 100);
+    const page = parseInt(req.query.page as string, 10) || DEFAULT_PAGE;
+    const limit = Math.min(
+      parseInt(req.query.limit as string, 10) || DEFAULT_PAGE_LIMIT,
+      MAX_PAGE_LIMIT
+    );
 
     const { artists, total } = await artistService.getAllArtists(page, limit);
 
@@ -54,12 +68,19 @@ router.get("/", async (req: Request, res: Response) => {
 
 /**
  * GET /api/v1/artists/search
- * Search artists by name
+ * Search artists by name (case-insensitive partial match)
+ *
+ * Query params:
+ *   - q: Search query (required)
+ *   - limit: Max results (default: 10, max: 50)
  */
 router.get("/search", async (req: Request, res: Response) => {
   try {
     const query = req.query.q as string;
-    const limit = Math.min(parseInt(req.query.limit as string, 10) || 10, 50);
+    const limit = Math.min(
+      parseInt(req.query.limit as string, 10) || DEFAULT_SEARCH_LIMIT,
+      MAX_SEARCH_LIMIT
+    );
 
     if (!query || query.trim().length === 0) {
       return res.status(400).json({

@@ -28,7 +28,7 @@ import supabase from "../services/supabaseClient";
 import cacheControl from "../services/cacheControl";
 import transform from "../utils/transform";
 import logger from "../services/logger";
-import artistService from "../services/artist";
+import { syncArtistsFromEvents } from "../services/artist";
 import { PartnerEvent } from "../types";
 import { upsertEventsWithRelations } from "../services/normalizedDataBatch";
 
@@ -257,8 +257,13 @@ const processSourceUpdate = async (
     `Successfully upserted ${upsertResult.success} ${source} events for ${cityName} (ID: ${cityId})`
   );
 
-  // Sync artists to master artists table from the events just processed
-  await syncArtistsToMasterTable(transformedEvents, source);
+  // Sync artists to master artists table ONLY for newly-inserted partner artists
+  // This avoids re-checking thousands of existing artists on every refresh.
+  await syncArtistsToMasterTable(
+    transformedEvents,
+    source,
+    upsertResult.newPartnerArtistExternalIds
+  );
 
   await assignGenresToEvents(transformedEvents, source);
 };
@@ -269,7 +274,8 @@ const processSourceUpdate = async (
  */
 const syncArtistsToMasterTable = async (
   events: PartnerEvent[],
-  source: "edmtrain" | "ticketmaster"
+  source: "edmtrain" | "ticketmaster",
+  limitToExternalIds?: string[]
 ): Promise<void> => {
   try {
     // Extract unique artists from all events with their external IDs
@@ -292,18 +298,38 @@ const syncArtistsToMasterTable = async (
 
     const uniqueArtists = Array.from(artistsMap.values());
 
-    if (uniqueArtists.length === 0) {
+    const allowedExternalIds =
+      limitToExternalIds && limitToExternalIds.length > 0
+        ? new Set(limitToExternalIds)
+        : null;
+
+    const artistsToSync = allowedExternalIds
+      ? uniqueArtists.filter((a) => allowedExternalIds.has(a.external_id))
+      : uniqueArtists;
+
+    if (artistsToSync.length === 0) {
+      if (allowedExternalIds) {
+        logger.debug(
+          {
+            source,
+            uniqueArtistsInEvents: uniqueArtists.length,
+            newlyInsertedPartnerArtists: limitToExternalIds?.length ?? 0,
+          },
+          "Skipping master artist sync (no new partner artists)"
+        );
+        return;
+      }
+
       logger.info(`No artists to sync for ${source} events`);
       return;
     }
 
     // Sync artists to master table
-    const syncResult = await artistService.syncArtistsFromEvents(
-      uniqueArtists,
-      source
-    );
+    const syncResult = await syncArtistsFromEvents(artistsToSync, source);
 
-    logger.info(`Artist sync result for ${source}:`, syncResult);
+    logger.info(
+      `Artist sync completed for ${source}: ${artistsToSync.length} artists considered, ${syncResult.created || 0} created, ${syncResult.updated || 0} updated, ${syncResult.skipped || 0} skipped, ${syncResult.errors || 0} errors`
+    );
   } catch (error) {
     logger.error(`Failed to sync artists for ${source}:`, error);
     // Don't throw - artist sync failure shouldn't break the entire job
