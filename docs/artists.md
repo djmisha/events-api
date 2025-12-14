@@ -202,7 +202,8 @@ Artists are automatically synchronized to the master `artists` table during the 
 │  - Upsert to prtnr_venues               │
 │  - Upsert to prtnr_artists              │
 │  - Upsert to prtnr_event_artists        │
-│  - Track newly-inserted artist IDs      │
+│  - Track new inserts by filtering       │
+│    against existing external IDs        │
 └────────────────────┬────────────────────┘
                      │
                      │ Automatic Artist Sync
