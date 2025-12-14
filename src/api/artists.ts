@@ -34,11 +34,15 @@ const MAX_SEARCH_LIMIT = 50;
  */
 router.get("/", async (req: Request, res: Response) => {
   try {
-    const page = parseInt(req.query.page as string, 10) || DEFAULT_PAGE;
-    const limit = Math.min(
-      parseInt(req.query.limit as string, 10) || DEFAULT_PAGE_LIMIT,
-      MAX_PAGE_LIMIT
-    );
+    const parsedPage = parseInt(req.query.page as string, 10);
+    const page =
+      Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : DEFAULT_PAGE;
+
+    const parsedLimit = parseInt(req.query.limit as string, 10);
+    const limit =
+      Number.isFinite(parsedLimit) && parsedLimit > 0
+        ? Math.min(parsedLimit, MAX_PAGE_LIMIT)
+        : DEFAULT_PAGE_LIMIT;
 
     const { artists, total } = await artistService.getAllArtists(page, limit);
 
@@ -77,10 +81,11 @@ router.get("/", async (req: Request, res: Response) => {
 router.get("/search", async (req: Request, res: Response) => {
   try {
     const query = req.query.q as string;
-    const limit = Math.min(
-      parseInt(req.query.limit as string, 10) || DEFAULT_SEARCH_LIMIT,
-      MAX_SEARCH_LIMIT
-    );
+    const parsedLimit = parseInt(req.query.limit as string, 10);
+    const limit =
+      Number.isFinite(parsedLimit) && parsedLimit > 0
+        ? Math.min(parsedLimit, MAX_SEARCH_LIMIT)
+        : DEFAULT_SEARCH_LIMIT;
 
     if (!query || query.trim().length === 0) {
       return res.status(400).json({
@@ -152,7 +157,8 @@ router.get("/:identifier", async (req: Request, res: Response) => {
       artist = await artistService.getArtistBySlug(identifier.toLowerCase());
     }
 
-    // If still not found, try searching by name
+    // If still not found, try searching by name (fuzzy match)
+    let fuzzyMatch = false;
     if (!artist) {
       const searchResults = await artistService.searchArtistsByName(
         identifier,
@@ -164,6 +170,7 @@ router.get("/:identifier", async (req: Request, res: Response) => {
           (a) => a.name.toLowerCase() === identifier.toLowerCase()
         );
         artist = exactMatch || searchResults[0];
+        fuzzyMatch = !exactMatch && !!artist;
       }
     }
 
@@ -178,7 +185,9 @@ router.get("/:identifier", async (req: Request, res: Response) => {
     const response: ArtistApiResponse = {
       data: artist,
       count: 1,
-      message: "Artist found",
+      message: fuzzyMatch
+        ? `Fuzzy match found for "${identifier}" - returned closest match "${artist.name}"`
+        : "Artist found",
     };
 
     return res.json(response);

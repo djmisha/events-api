@@ -16,7 +16,7 @@
  *
  * Database Operations per Webhook:
  * - Upsert venues, artists, events (batch operations)
- * - Sync artists to master table (batch operations, 10 at a time)
+ * - Sync artists to master table (single optimized batch operation)
  * - Fetch/create genres and assign to events (2-3 queries total)
  * - Delete old events and orphaned records (2-4 queries total)
  * - Total: ~10-15 queries for 100+ events
@@ -259,18 +259,48 @@ const processSourceUpdate = async (
 
   // Sync artists to master artists table ONLY for newly-inserted partner artists
   // This avoids re-checking thousands of existing artists on every refresh.
-  await syncArtistsToMasterTable(
-    transformedEvents,
-    source,
-    upsertResult.newPartnerArtistExternalIds
-  );
+  let artistSyncFailed = false;
+  try {
+    await syncArtistsToMasterTable(
+      transformedEvents,
+      source,
+      upsertResult.newPartnerArtistExternalIds
+    );
+  } catch (artistSyncError) {
+    artistSyncFailed = true;
+    logger.error(
+      {
+        source,
+        cityId,
+        cityName,
+        error:
+          artistSyncError instanceof Error
+            ? artistSyncError.message
+            : String(artistSyncError),
+      },
+      "Artist sync failed but continuing with event processing"
+    );
+  }
 
   await assignGenresToEvents(transformedEvents, source);
+
+  // Log warning if artist sync failed
+  if (artistSyncFailed) {
+    logger.warn(
+      {
+        source,
+        cityId,
+        cityName,
+      },
+      "Event processing completed but artist sync failed - artists may be missing from master table"
+    );
+  }
 };
 
 /**
  * Sync artists from processed events to the master artists table
  * Extracts unique artists from events and syncs them to the artists table
+ * using a single optimized batch operation
  */
 const syncArtistsToMasterTable = async (
   events: PartnerEvent[],
@@ -343,8 +373,15 @@ const syncArtistsToMasterTable = async (
       `Artist sync completed for ${source}: ${artistsToSync.length} artists considered, ${syncResult.created || 0} created, ${syncResult.updated || 0} updated, ${syncResult.skipped || 0} skipped, ${syncResult.errors || 0} errors`
     );
   } catch (error) {
-    logger.error(`Failed to sync artists for ${source}:`, error);
-    // Don't throw - artist sync failure shouldn't break the entire job
+    logger.error(
+      {
+        source,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      `Failed to sync artists for ${source}`
+    );
+    // Re-throw so caller can handle and emit warning
+    throw error;
   }
 };
 

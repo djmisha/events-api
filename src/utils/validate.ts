@@ -14,25 +14,91 @@ import { PartnerEvent, ArtistInput } from "../types";
  * Validates all required fields and constraints for new artist records
  */
 const artistInputSchema = joi.object({
-  name: joi.string().min(1).max(255).required(),
-  slug: joi.string().min(1).max(255).optional(),
+  name: joi
+    .string()
+    .min(1)
+    .max(255)
+    .trim()
+    .pattern(/^.*\S+.*$/, "non-whitespace")
+    .required()
+    .messages({
+      "string.pattern.name":
+        "Name must contain at least one non-whitespace character",
+    }),
+  slug: joi
+    .string()
+    .min(1)
+    .max(255)
+    .pattern(/^[a-z0-9-]+$/, "url-safe")
+    .optional()
+    .messages({
+      "string.pattern.name":
+        "Slug must contain only lowercase letters, numbers, and hyphens",
+    }),
   image: joi.string().uri().allow(null).optional(),
-  tags: joi.array().items(joi.string()).optional(),
+  tags: joi.array().items(joi.string()).min(1).optional(),
   ticketmaster_id: joi.string().allow(null).optional(),
   edmtrain_id: joi.number().integer().allow(null).optional(),
   bio: joi.string().max(5000).allow(null).optional(),
-  metadata: joi.object().optional(),
+  metadata: joi
+    .object()
+    .max(20)
+    .pattern(
+      joi.string(),
+      joi.any().when(joi.ref("."), {
+        is: joi.object(),
+        then: joi.object().max(5),
+        otherwise: joi.any(),
+      })
+    )
+    .optional()
+    .messages({
+      "object.max": "Metadata can contain at most 20 top-level keys",
+    }),
 });
 
 const artistUpdateSchema = joi.object({
-  name: joi.string().min(1).max(255).optional(),
-  slug: joi.string().min(1).max(255).optional(),
+  name: joi
+    .string()
+    .min(1)
+    .max(255)
+    .trim()
+    .pattern(/^.*\S+.*$/, "non-whitespace")
+    .optional()
+    .messages({
+      "string.pattern.name":
+        "Name must contain at least one non-whitespace character",
+    }),
+  slug: joi
+    .string()
+    .min(1)
+    .max(255)
+    .pattern(/^[a-z0-9-]+$/, "url-safe")
+    .optional()
+    .messages({
+      "string.pattern.name":
+        "Slug must contain only lowercase letters, numbers, and hyphens",
+    }),
   image: joi.string().uri().allow(null).optional(),
-  tags: joi.array().items(joi.string()).optional(),
+  tags: joi.array().items(joi.string()).min(1).optional(),
   ticketmaster_id: joi.string().allow(null).optional(),
   edmtrain_id: joi.number().integer().allow(null).optional(),
   bio: joi.string().max(5000).allow(null).optional(),
-  metadata: joi.object().optional(),
+  metadata: joi
+    .object()
+    .max(20)
+    .pattern(
+      joi.string(),
+      joi.any().when(joi.ref("."), {
+        is: joi.object(),
+        then: joi.object().max(5),
+        otherwise: joi.any(),
+      })
+    )
+    .optional()
+    .messages({
+      "object.max": "Metadata can contain at most 20 top-level keys",
+    }),
 });
 
 // Event validation schema

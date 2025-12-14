@@ -42,13 +42,12 @@ module.exports = {
         "no-use-before-define": "off",
         "no-await-in-loop": "off",
         "object-curly-newline": "off",
-        // Allow modifying 'result' parameter in accumulator patterns (e.g., batch sync operations)
-        // This is common in reduce-like functions where result acts as an accumulator
+        // Allow modifying accumulator in reduce patterns but keep strict elsewhere
         "no-param-reassign": [
           "error",
           {
             props: true,
-            ignorePropertyModificationsFor: ["result"],
+            ignorePropertyModificationsFor: [],
           },
         ],
       },

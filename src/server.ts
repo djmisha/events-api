@@ -71,9 +71,9 @@ app.get("/", (req: Request, res: Response) => {
       path: "/api/v1/artists",
       authentication: "API Key required",
       examples: [
-        "/api/v1/artists - List all artists (paginated)",
+        "/api/v1/artists?page=1&limit=50 - List all artists (paginated)",
         "/api/v1/artists/search?q=deadmau5 - Search by name",
-        "/api/v1/artists/:id - Get by UUID, slug, or external ID",
+        "/api/v1/artists/:id - Get by UUID, slug, or external ID (edmtrain:123, ticketmaster:abc)",
       ],
     },
     webhook: {

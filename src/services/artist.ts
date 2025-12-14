@@ -200,7 +200,10 @@ export async function getAllArtists(
   limit = DEFAULT_PAGE_SIZE
 ): Promise<{ artists: Artist[]; total: number }> {
   try {
-    const offset = (page - 1) * limit;
+    // Validate pagination parameters
+    const validPage = Math.max(1, Math.floor(page));
+    const validLimit = Math.max(1, Math.floor(limit));
+    const offset = (validPage - 1) * validLimit;
 
     // Get total count
     const { count } = await supabase
@@ -212,7 +215,7 @@ export async function getAllArtists(
       .from("artists")
       .select("*")
       .order("name")
-      .range(offset, offset + limit - 1);
+      .range(offset, offset + validLimit - 1);
 
     if (error) {
       throw error;
@@ -243,7 +246,35 @@ export async function createArtist(input: ArtistInput): Promise<Artist> {
   try {
     // Validate input
     const validatedInput = validate.validateArtistInput(input);
-    const slug = validatedInput.slug || generateSlug(validatedInput.name);
+    let slug = validatedInput.slug || generateSlug(validatedInput.name);
+
+    // Check for existing slug and generate unique variant if needed
+    let counter = 2;
+    let uniqueSlug = slug;
+    let slugChecks = 0;
+    const MAX_SLUG_CHECKS = 100; // Prevent infinite loop
+    while (slugChecks < MAX_SLUG_CHECKS) {
+      const { data: existing } = await supabase
+        .from("artists")
+        .select("slug")
+        .eq("slug", uniqueSlug)
+        .maybeSingle();
+
+      if (!existing) {
+        slug = uniqueSlug;
+        break;
+      }
+
+      uniqueSlug = `${slug}-${counter}`;
+      counter += 1;
+      slugChecks += 1;
+    }
+
+    if (slugChecks >= MAX_SLUG_CHECKS) {
+      throw new Error(
+        `Failed to generate unique slug after ${MAX_SLUG_CHECKS} attempts`
+      );
+    }
 
     const { data, error } = await supabase
       .from("artists")
@@ -320,7 +351,11 @@ export async function updateArtist(
     if (validatedInput.image !== undefined && validatedInput.image !== null) {
       updateData.image = validatedInput.image;
     }
-    if (validatedInput.tags !== undefined && validatedInput.tags.length > 0) {
+    if (
+      validatedInput.tags !== undefined &&
+      validatedInput.tags !== null &&
+      validatedInput.tags.length > 0
+    ) {
       updateData.tags = validatedInput.tags;
     }
     if (
@@ -340,6 +375,11 @@ export async function updateArtist(
     }
     if (validatedInput.metadata !== undefined) {
       updateData.metadata = validatedInput.metadata;
+    }
+
+    // Ensure at least one field is being updated
+    if (Object.keys(updateData).length === 0) {
+      throw new Error("No valid fields provided for update");
     }
 
     const { data, error } = await supabase
@@ -397,29 +437,48 @@ interface SyncCandidate {
  * @param result - Accumulator for error counts
  * @returns Array of validated sync candidates ready for database lookup
  */
+// eslint-disable-next-line no-param-reassign
 function parseSyncCandidates(
   artists: Array<{ external_id: string; name: string }>,
   source: ArtistSource,
   runId: string,
   result: ArtistSyncResult
 ): SyncCandidate[] {
-  // Dedupe inputs to reduce DB calls (same artist may appear in many events)
-  const dedupedArtists = Array.from(
-    artists
-      .reduce((map, artist) => {
-        const external = artist.external_id?.trim();
-        const key = external
-          ? `external:${external}`
-          : `name:${normalizeArtistName(artist.name)}`;
+  // Dedupe inputs: prioritize external_id, then name separately
+  const artistsWithExternalId = new Map<
+    string,
+    { external_id: string; name: string }
+  >();
+  const artistsByName = new Map<
+    string,
+    { external_id: string; name: string }
+  >();
 
-        if (!map.has(key)) {
-          map.set(key, artist);
-        }
+  // eslint-disable-next-line no-restricted-syntax
+  for (const artist of artists) {
+    const external = artist.external_id?.trim();
+    if (external) {
+      if (!artistsWithExternalId.has(external)) {
+        artistsWithExternalId.set(external, artist);
+      }
+    } else {
+      const normName = normalizeArtistName(artist.name);
+      // Only add if this name is not already present among artists with external_id
+      if (
+        !artistsByName.has(normName) &&
+        !Array.from(artistsWithExternalId.values()).some(
+          (a) => normalizeArtistName(a.name) === normName
+        )
+      ) {
+        artistsByName.set(normName, artist);
+      }
+    }
+  }
 
-        return map;
-      }, new Map<string, { external_id: string; name: string }>())
-      .values()
-  );
+  const dedupedArtists = [
+    ...Array.from(artistsWithExternalId.values()),
+    ...Array.from(artistsByName.values()),
+  ];
 
   const candidates: SyncCandidate[] = [];
 
@@ -455,6 +514,7 @@ function parseSyncCandidates(
 
       // If we couldn't parse a usable external ID, skip this record
       if (!candidate.edmtrain_id && !candidate.ticketmaster_id) {
+        // eslint-disable-next-line no-param-reassign
         result.errors += 1;
         logger.warn(
           {
@@ -470,6 +530,7 @@ function parseSyncCandidates(
 
       candidates.push(candidate);
     } catch (parseError) {
+      // eslint-disable-next-line no-param-reassign
       result.errors += 1;
       logger.error(
         {
@@ -483,6 +544,25 @@ function parseSyncCandidates(
       );
     }
   });
+
+  // Circuit breaker: abort if too many errors (likely systemic data issue)
+  const CIRCUIT_BREAKER_ERROR_THRESHOLD = 0.5; // 50%
+  const total = dedupedArtists.length;
+  if (total > 0 && result.errors / total > CIRCUIT_BREAKER_ERROR_THRESHOLD) {
+    logger.error(
+      {
+        runId,
+        source,
+        totalArtists: total,
+        errorCount: result.errors,
+        errorRate: (result.errors / total).toFixed(2),
+      },
+      "Aborting artist sync: error rate exceeded threshold (possible data format issue)"
+    );
+    throw new Error(
+      `Aborting artist sync: error rate exceeded threshold (${result.errors}/${total})`
+    );
+  }
 
   return candidates;
 }
@@ -642,6 +722,7 @@ async function batchLookupExistingArtists(
  * @param runId - UUID for logging correlation
  * @param source - Data source for error logging
  */
+// eslint-disable-next-line no-param-reassign
 async function executeBulkArtistOperations(
   candidates: SyncCandidate[],
   existingMaps: {
@@ -695,6 +776,7 @@ async function executeBulkArtistOperations(
       return;
     }
 
+    // eslint-disable-next-line no-param-reassign
     result.skipped += 1;
   });
 
@@ -709,25 +791,69 @@ async function executeBulkArtistOperations(
     return record;
   });
 
-  // Bulk upsert new artists by slug
+  // Bulk upsert new artists by slug, ensuring slug uniqueness
   if (inserts.length > 0) {
-    try {
-      const { error } = await supabase
-        .from("artists")
-        .upsert(inserts, { onConflict: "slug" });
-      if (error) throw error;
-      result.created += inserts.length;
-    } catch (insertError) {
+    // Ensure slugs are unique in DB and in this batch
+    // 1. Gather all slugs to check
+    const slugsToCheck = inserts.map((artist) => artist.slug);
+    // 2. Fetch existing slugs from DB
+    const { data: existingSlugRows, error: slugFetchError } = await supabase
+      .from("artists")
+      .select("slug")
+      .in("slug", slugsToCheck);
+    if (slugFetchError) {
       logger.error(
         {
           runId,
           source,
-          error: serializeError(insertError),
-          count: inserts.length,
+          error: serializeError(slugFetchError),
+          count: slugsToCheck.length,
         },
-        "Error bulk upserting new artists"
+        "Error fetching existing artist slugs"
       );
+      // eslint-disable-next-line no-param-reassign
       result.errors += inserts.length;
+    } else {
+      // 3. Build a set of existing slugs (from DB and batch)
+      const existingSlugs = new Set<string>(
+        (existingSlugRows || []).map((row) => row.slug)
+      );
+      // Also track slugs assigned in this batch to avoid duplicates
+      const batchSlugs = new Set<string>(existingSlugs);
+      // 4. For each insert, ensure unique slug
+      // eslint-disable-next-line no-restricted-syntax
+      for (const artist of inserts) {
+        const baseSlug = artist.slug || "";
+        let uniqueSlug: string = baseSlug;
+        let counter = 2;
+        while (batchSlugs.has(uniqueSlug)) {
+          uniqueSlug = `${baseSlug}-${counter}`;
+          counter += 1;
+        }
+        artist.slug = uniqueSlug;
+        batchSlugs.add(uniqueSlug);
+      }
+      // 5. Proceed with upsert
+      try {
+        const { error } = await supabase
+          .from("artists")
+          .upsert(inserts, { onConflict: "slug" });
+        if (error) throw error;
+        // eslint-disable-next-line no-param-reassign
+        result.created += inserts.length;
+      } catch (insertError) {
+        logger.error(
+          {
+            runId,
+            source,
+            error: serializeError(insertError),
+            count: inserts.length,
+          },
+          "Error bulk upserting new artists"
+        );
+        // eslint-disable-next-line no-param-reassign
+        result.errors += inserts.length;
+      }
     }
   }
 
@@ -738,6 +864,7 @@ async function executeBulkArtistOperations(
         .from("artists")
         .upsert(updates, { onConflict: "id" });
       if (error) throw error;
+      // eslint-disable-next-line no-param-reassign
       result.updated += updates.length;
     } catch (updateError) {
       logger.error(
@@ -749,6 +876,7 @@ async function executeBulkArtistOperations(
         },
         "Error bulk updating existing artists"
       );
+      // eslint-disable-next-line no-param-reassign
       result.errors += updates.length;
     }
   }

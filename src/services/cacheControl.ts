@@ -2,7 +2,7 @@ import supabase from "./supabaseClient";
 import logger from "./logger";
 
 // Cache configuration
-const HOURS = 24;
+const HOURS = 12;
 const CACHE_MAX_AGE = HOURS * 60 * 60;
 
 /**
