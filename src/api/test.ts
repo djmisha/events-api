@@ -185,4 +185,36 @@ router.get("/combined/:id/:city", async (req: Request, res: Response) => {
   }
 });
 
+// Test endpoint for top artists calculation
+router.get("/calculate-top-artists", async (req: Request, res: Response) => {
+  try {
+    logger.info("Testing top artists calculation job");
+
+    // Execute the calculation job
+    const startTime = Date.now();
+    const { execute: calculateTopArtists } = await import(
+      "../jobs/calculateTopArtists"
+    );
+    await calculateTopArtists();
+    const duration = Date.now() - startTime;
+
+    logger.info("Top artists calculation test completed successfully");
+
+    res.json({
+      success: true,
+      message: "Top artists calculation completed successfully",
+      duration: `${duration}ms`,
+      timestamp: new Date().toISOString(),
+      note: "Check database prtnr_top_artists table for results",
+    });
+  } catch (error) {
+    logger.error("Top artists test endpoint error:", error);
+    res.status(500).json({
+      error: "Top artists calculation error",
+      message: error instanceof Error ? error.message : "Unknown error",
+      details: process.env.NODE_ENV === "development" ? error : undefined,
+    });
+  }
+});
+
 export default router;
