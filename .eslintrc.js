@@ -41,6 +41,15 @@ module.exports = {
         "consistent-return": "off",
         "no-use-before-define": "off",
         "no-await-in-loop": "off",
+        "object-curly-newline": "off",
+        // Allow modifying accumulator in reduce patterns but keep strict elsewhere
+        "no-param-reassign": [
+          "error",
+          {
+            props: true,
+            ignorePropertyModificationsFor: [],
+          },
+        ],
       },
     },
   ],
